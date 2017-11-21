@@ -34,21 +34,16 @@ class Create:
         self.iCurrentYear = self.iBaseYear
 
         # year steps in foresignt period
-        self.aFSYearSteps_YS = self.get_FSYearSteps()
+        self.iFSYearSteps_YS = self.get_FSYearSteps()
 
-        '''
-        # array offset to current year
-        self.iTimePeriodOffset = 0
+        # Region structure
+        self.lsRegion = io_import_instance.get_Region(_objInstanceConfig)
+
+        # market structure
+        self.lsMarket = io_import_instance.get_Market(_objInstanceConfig)
         
-        
-        # region and subregion
-        self.listRegionObjs = io_import_instance.get_RegionList(_objInstanceConfig)
-        self.listSubregionObjs = io_import_instance.get_SubregionList(_objInstanceConfig)
-        io_import_instance.UpdateRegionIndex(self)
-        
-        
-        '''
         return
+
 
 
     def get_FSYearSteps(self):
@@ -62,6 +57,30 @@ class Create:
         aCurrentFSYearSteps = np.array(aFSYearSteps)   
     
         return aCurrentFSYearSteps
+
+
+
+    def get_RegionAssumption(self):
+        """ get assumptions on region level """
+        
+        # process technical assumptions
+        for objRegion in self.lsRegion:
+        
+        
+            print("")
+
+        return
+
+
+
+
+
+
+
+
+
+
+
 
 
 

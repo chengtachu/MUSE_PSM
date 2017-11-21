@@ -10,15 +10,18 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    # create instance and import instance configs (Data/MUSEPower/nstanceConfig.xlsx)
+    # create instance and import instance configs (Data/nstanceConfig.xlsx)
     instance = cls_instance.Create()
     print('{:f}'.format(time.time() - start_time) + " instance created")
 
+    # import regiom assumptions (Data/ExoAssumption)
+    instance.get_RegionAssumption()
 
-    # import regional assumptions (Data/MUSEPower/ExoAssumption)
+
+    # import country assumptions (Data/ExoAssumption)
 
 
-    # import subregional assumptions (Data/MUSEPower/ExoAssumption)
+
 
 
     # flag for iterative execution, set it false to stop looping

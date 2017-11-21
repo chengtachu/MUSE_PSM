@@ -2,7 +2,6 @@
 
 
 
-
 #------------ time slice -------------
 class TimeSlice:
     """ time slice class  """

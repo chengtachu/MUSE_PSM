@@ -4,6 +4,8 @@ import numpy as np
 
 import io_import_util
 import cls_misc
+import cls_region
+import cls_market
 
 
 class Import_Instance_Config:
@@ -26,6 +28,7 @@ class Import_Instance_Config:
         return
 
 
+
 def get_MainInfo(objInstanceConfig):
     """ load basic configurations  """
     
@@ -35,6 +38,7 @@ def get_MainInfo(objInstanceConfig):
     iForesight = int(dfMainInfo.loc["Foresight","ItemValue"])
     
     return iBaseYear, sInstanceDesc, iForesight
+
 
 
 def get_AllYearSteps(objInstanceConfig):
@@ -79,6 +83,75 @@ def get_ProcessDef(objInstanceConfig):
                                                               ProcessFullName=row["ProcessFullName"], Fuel=row["Fuel"], \
                                                               OperationMode=row["OperationMode"]))
     return lsProcessDef
+
+
+
+def get_Region(objInstanceConfig):
+    """ get region/country/zone structure """
+    
+    # get region object
+    lsRegionObj = list()
+
+
+    # create region object
+    dfRegion = objInstanceConfig.dfStructure.drop_duplicates("Region")
+
+    for sRegion in dfRegion.loc[:,"Region"]:
+        lsRegionObj.append(cls_region.Region(sRegion))
+
+
+    # create country object      
+    dfCountry = objInstanceConfig.dfStructure.drop_duplicates("Country")
+
+    for index, row in dfCountry.iterrows():
+        Region = row["Region"]
+        Country = row["Country"]
+        
+        for objRegion in lsRegionObj:
+            if Region == objRegion.sRegion:
+                objRegion.lsCountry.append(cls_region.Country(Country))
+                break
+
+    # append zone list
+    for index, row in objInstanceConfig.dfStructure.iterrows():
+        Region = row["Region"]
+        Country = row["Country"]
+        Zone = row["Zone"]
+    
+        for objRegion in lsRegionObj:
+            for objCountry in objRegion.lsCountry:
+                if Country == objCountry.sCountry:
+                    objCountry.sZone_ZN.append(Zone)
+                    break
+
+    return lsRegionObj
+
+
+def get_Market(objInstanceConfig):
+    """ get market/zone structure """
+    
+    # get market object
+    lsMarket = list()
+
+    # create region object
+    dfMarket = objInstanceConfig.dfStructure.drop_duplicates("Market")
+
+    for sMarket in dfMarket.loc[:,"Market"]:
+        lsMarket.append(cls_market.Market(sMarket))
+
+    # create zone object      
+    for index, row in objInstanceConfig.dfStructure.iterrows():
+        Market = row["Market"]
+        Zone = row["Zone"]
+
+        for objMarket in lsMarket:
+            if Market == objMarket.sMarket:
+                objMarket.lsZone.append(cls_market.Zone(Zone))
+                break
+                
+    return lsMarket
+
+
 
 
 
