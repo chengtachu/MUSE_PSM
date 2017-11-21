@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import numpy as np
 
 import io_import_instance
-
 
 class Create:
     """ create an instance object  """
@@ -18,7 +18,7 @@ class Create:
         self.iBaseYear, self.sInstanceDesc, self.iForesight = io_import_instance.get_MainInfo(_objInstanceConfig)
 
         # year steps
-        self.iYearSteps_YS = io_import_instance.get_AllYearSteps(_objInstanceConfig)
+        self.iAllYearSteps_YS = io_import_instance.get_AllYearSteps(_objInstanceConfig)
 
         # time slice
         self.lsTimeSlice = io_import_instance.get_TimeSlice(_objInstanceConfig)
@@ -27,16 +27,16 @@ class Create:
         self.lsCommodity = io_import_instance.get_Commodity(_objInstanceConfig)
 
         # process list
-        #self.lsProcessDefObjs = io_import_instance.get_ProcessDef(_objInstanceConfig)
+        self.lsProcessDefObjs = io_import_instance.get_ProcessDef(_objInstanceConfig)
 
 
-        '''
         # default current year is base year
         self.iCurrentYear = self.iBaseYear
 
         # year steps in foresignt period
-        self.aTimePeriod = io_import_instance.get_CurrentTimePeriod(self)
+        self.aFSYearSteps_YS = self.get_FSYearSteps()
 
+        '''
         # array offset to current year
         self.iTimePeriodOffset = 0
         
@@ -48,12 +48,20 @@ class Create:
         
         
         '''
-
-        print("")
-
         return
 
 
+    def get_FSYearSteps(self):
+        """ get a array of current foresight year steps """
+        
+        aFSYearSteps = []
+        for iYear in self.iAllYearSteps_YS:
+            if iYear >= self.iCurrentYear and iYear <= (self.iCurrentYear + self.iForesight):
+                aFSYearSteps.append(iYear)
+    
+        aCurrentFSYearSteps = np.array(aFSYearSteps)   
+    
+        return aCurrentFSYearSteps
 
 
 

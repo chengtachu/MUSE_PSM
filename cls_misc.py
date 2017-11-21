@@ -25,29 +25,26 @@ class Commodity:
     """ Commodity class  """
 
     def __init__(self, **kwargs):
-        self.sTest = "test"
-        #self.sCommodityName = kwargs["CommodityName"]
-        #self.sCategory = kwargs["Category"]
-        #self.fHeatRate = kwargs["HeatRate"]
-        #self.fEmissionFactor_CO2 = kwargs["EmissionFactor_CO2"]
-        #self.fFuelPrice_TS_YS = list()
+        self.sCommodityName = kwargs["CommodityName"]
+        self.sCategory = kwargs["Category"]
+        self.fHeatRate = kwargs["HeatRate"]
+        self.fEmissionFactor_CO2 = kwargs["EmissionFactor_CO2"]
+        self.fFuelPrice_TS_YS = list()
         return
 
 
 
 #------------ technology/process -------------
 class ProcessDef:
-    """ process list class  """
+    """ basic process definition class  """
 
     def __init__(self, **kwargs):
-        # basic technical assumption defined in instance
         self.sProcessName = kwargs["ProcessName"]
         self.sProcessType = kwargs["ProcessType"]
-        self.bCCS = kwargs["CCS"]
+        self.bCCS = str(kwargs["CCS"])
         self.sProcessFullName = kwargs["ProcessFullName"]
         self.sFuel = kwargs["Fuel"]
         self.sOperationMode = kwargs["OperationMode"]
-
         return
 
 
