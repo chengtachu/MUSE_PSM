@@ -3,8 +3,9 @@
 import numpy as np
 
 import io_import_instance
+import io_import_regionNcountry
 
-class Create:
+class Instance:
     """ create an instance object  """
 
     def __init__(self):
@@ -28,7 +29,6 @@ class Create:
 
         # process list
         self.lsProcessDefObjs = io_import_instance.get_ProcessDef(_objInstanceConfig)
-
 
         # default current year is base year
         self.iCurrentYear = self.iBaseYear
@@ -63,15 +63,32 @@ class Create:
     def get_RegionAssumption(self):
         """ get assumptions on region level """
         
-        # process technical assumptions
-        for objRegion in self.lsRegion:
+        # import region technical assumptions
+        io_import_regionNcountry.get_RegionTechAssump(self)
+        
+        # import region cost assumptions
         
         
-            print("")
+        print("test")
 
         return
 
 
+
+    def get_CountryAssumption(self):
+        """ get assumptions on region level """
+        
+        # process technical assumptions
+        for objRegion in self.lsRegion:
+            for objCountry in objRegion.lsCountry:
+            
+                # import country technical assumptions (override region)
+        
+                # import country cost assumptions (override region)
+                
+                print("test")
+
+        return
 
 
 

@@ -8,22 +8,24 @@ import cls_region
 import cls_market
 
 
+_sFolderPath = "Data/"
+
 class Import_Instance_Config:
     """ create an object to hold instance config in dataframe  """
 
     def __init__(self):
         
-        strFilePath = "Data/" + "InstanceConfig.xlsx"
+        sFilePath = _sFolderPath + "InstanceConfig.xlsx"
         
         ### import all instance config sheets
-        self.dfMainInfo = io_import_util.getDataFrame(strFilePath,"MainInfo")
-        self.dfStructure = io_import_util.getDataFrame(strFilePath,"Structure")
-        self.dfMarket = io_import_util.getDataFrame(strFilePath,"Market")
-        self.dfYearSteps = io_import_util.getDataFrame(strFilePath,"YearSteps")
-        self.dfTimeSlice = io_import_util.getDataFrame(strFilePath,"TimeSlice")
-        self.dfCommodity = io_import_util.getDataFrame(strFilePath,"Commodity")
-        self.dfProcess = io_import_util.getDataFrame(strFilePath,"Process")
-        self.dfGenerator = io_import_util.getDataFrame(strFilePath,"Generator")
+        self.dfMainInfo = io_import_util.getDataFrame(sFilePath,"MainInfo")
+        self.dfStructure = io_import_util.getDataFrame(sFilePath,"Structure")
+        self.dfMarket = io_import_util.getDataFrame(sFilePath,"Market")
+        self.dfYearSteps = io_import_util.getDataFrame(sFilePath,"YearSteps")
+        self.dfTimeSlice = io_import_util.getDataFrame(sFilePath,"TimeSlice")
+        self.dfCommodity = io_import_util.getDataFrame(sFilePath,"Commodity")
+        self.dfProcess = io_import_util.getDataFrame(sFilePath,"Process")
+        self.dfGenerator = io_import_util.getDataFrame(sFilePath,"Generator")
 
         return
 

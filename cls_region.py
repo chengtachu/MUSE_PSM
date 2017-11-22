@@ -7,6 +7,7 @@ class Region:
     def __init__(self, Region):
         self.sRegion = Region
         self.lsCountry = list()          # a list of country index under this region
+        self.lsProcess = list()          # a list of country index under this region
         #self.RegionOutput = RegionOutput()
         return
 

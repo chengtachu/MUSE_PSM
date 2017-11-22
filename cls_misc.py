@@ -47,5 +47,16 @@ class ProcessDef:
         return
 
 
+class RegionGenTech(ProcessDef):
+    """ regional process class  """
+
+    def __init__(self, ProcessName, dicParameters):
+        # basic technical assumption for region
+        self.sProcessName = ProcessName
+        for sParameter, value in dicParameters.items():
+            setattr(self, sParameter, value)
+        return
+
+
 
 

@@ -11,15 +11,14 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # create instance and import instance configs (Data/nstanceConfig.xlsx)
-    instance = cls_instance.Create()
+    instance = cls_instance.Instance()
     print('{:f}'.format(time.time() - start_time) + " instance created")
 
     # import regiom assumptions (Data/ExoAssumption)
     instance.get_RegionAssumption()
 
-
     # import country assumptions (Data/ExoAssumption)
-
+    instance.get_CountryAssumption()
 
 
 
