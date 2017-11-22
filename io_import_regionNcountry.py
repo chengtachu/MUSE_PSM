@@ -1,46 +1,228 @@
 # -*- coding: utf-8 -*-
 
+import os
+
 import cls_misc
 import io_import_util
+
 
 _sFolderPath = "Data/Assumption/"
 
 
-def get_RegionTechAssump(instance):
-    """ load region technical assumptions (process) """
+def get_RegionTechAssump(objRegion, lsProcessDefObjs, iAllYearSteps_YS):
+    ''' load region technical assumptions (process) '''
     
-    for objRegion in instance.lsRegion:
+    sFilePath = _sFolderPath + "Region_Tech/" + objRegion.sRegion + ".xlsx"
+    sSheetName = "GenTech"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    dfData = dfData.drop(dfData.index[0])
     
-        sFilePath = _sFolderPath + "Region_Tech/" + objRegion.sRegion + ".xlsx"
+    # load technical parameter
+    for index, row in dfData.iterrows():
+        dicParameters = {}
+        for indexPR, sParameter in enumerate(row.index[1:]) :
+            dicParameters[sParameter] = row[indexPR + 1]    # first column is ProcessName
+        objRegion.lsProcessAssump.append(cls_misc.RegionGenTech(row["ProcessName"], dicParameters))
+            
+    # update definition from instance process definition
+    for objProcess in objRegion.lsProcessAssump :
+        for indexInstanceTech, objInstanceTech in enumerate(lsProcessDefObjs):
+            if objInstanceTech.sProcessName == objProcess.sProcessName :
+                objProcess.sProcessType = objInstanceTech.sProcessType
+                objProcess.bCCS = objInstanceTech.bCCS
+                objProcess.sProcessFullName = objInstanceTech.sProcessFullName
+                objProcess.sFuel = objInstanceTech.sFuel
+                objProcess.sOperationMode = objInstanceTech.sOperationMode
+                break
+            
+    # load process gross efficiencty parameter - power condense mode
+    sSheetName = "GenTechGrossEff_Power_CM"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fEffPowerCM_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+    # load process gross efficiencty parameter - power back-pressure mode
+    sSheetName = "GenTechGrossEff_Power_BP"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fEffPowerBP_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+        
+    # load process gross efficiencty parameter - heat back-pressure mode
+    sSheetName = "GenTechGrossEff_Heat_BP"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fEffHeatBP_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+        
+    return
+
+
+
+def get_RegionCostAssump(objRegion, iAllYearSteps_YS):
+    ''' load region cost assumptions (process) '''
+    
+    sFilePath = _sFolderPath + "Region_Cost/" + objRegion.sRegion + ".xlsx"
+
+    # load process cost projections - CAPEX
+    sSheetName = "CAPEX"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fCAPEX_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+    # load process cost projections - OPEX
+    sSheetName = "OPEX"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fOPEX_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+    # load process cost projections - running cost
+    sSheetName = "RunningCost"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fRunningCost_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+    # load process cost projections - Discount rate
+    sSheetName = "Discount"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fDiscountRate_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+    # load process cost projections - Start Up Cost
+    sSheetName = "StartUpCost"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fStartUpCost_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+    # load process cost projections - No Load Cost
+    sSheetName = "NoLoadCost"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+        objRegion.lsProcessAssump[iRegionProcessIndex].fNoLoadCost_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+    return
+
+
+
+def get_CountryTechAssump(objRegion, objCountry, iAllYearSteps_YS):
+    ''' load country technical assumptions (process) '''
+            
+    sFilePath = _sFolderPath + "Country_Tech/" + objCountry.sCountry + ".xlsx"
+        
+    # check file exist    
+    if os.path.exists(sFilePath):
+
+        # check and override technical parameter
         sSheetName = "GenTech"
         dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
         dfData = dfData.drop(dfData.index[0])
         
-        # load technical parameter
         for index, row in dfData.iterrows():
+            iProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            
             dicParameters = {}
             for indexPR, sParameter in enumerate(row.index[1:]) :
                 dicParameters[sParameter] = row[indexPR + 1]    # first column is ProcessName
-            objRegion.lsProcess.append(cls_misc.RegionGenTech(row["ProcessName"], dicParameters))
-        
-        # load process efficiencty parameter
-        
-        # update definition from instance process definition
-        '''
-        for objRegionGenTech in objRegion.listRegionGenTech :
-            sProcessName = objRegionGenTech.sProcessName
+            
+            for sParameter, value in dicParameters.items():
+                setattr(objCountry.lsProcessAssump[iProcessIndex], sParameter, value)
 
-            for indexInstanceTech, objInstanceTech in enumerate(instance.lsProcessDefObjs):
-                if objInstanceTech.sProcessName == sProcessName :
-                    # carrier
-                    objRegionGenTech.sCarrierIn = objInstanceTech.sCarrierIn
-                    # operation mode
-                    objRegionGenTech.sOperationMode = objInstanceTech.sOperationMode
-        '''
+
+        # load process gross efficiencty parameter - power condense mode
+        sSheetName = "GenTechGrossEff_Power_CM"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fEffPowerCM_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+
+        # load process gross efficiencty parameter - power back-pressure mode
+        sSheetName = "GenTechGrossEff_Power_BP"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fEffPowerBP_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+            
+        # load process gross efficiencty parameter - heat back-pressure mode
+        sSheetName = "GenTechGrossEff_Heat_BP"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fEffHeatBP_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
         
+    return
+
+
+
+def get_CountryCostAssump(objRegion, objCountry, iAllYearSteps_YS):
+    ''' load country cost assumptions (process) '''
+    
+        
+    sFilePath = _sFolderPath + "Country_Cost/" + objCountry.sCountry + ".xlsx"
+        
+    # check file exist    
+    if os.path.exists(sFilePath):
+
+        # load process cost projections - CAPEX
+        sSheetName = "CAPEX"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fCAPEX_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+    
+        # load process cost projections - OPEX
+        sSheetName = "OPEX"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fOPEX_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+    
+        # load process cost projections - running cost
+        sSheetName = "RunningCost"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fRunningCost_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+    
+        # load process cost projections - Discount rate
+        sSheetName = "Discount"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fDiscountRate_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+    
+        # load process cost projections - Start Up Cost
+        sSheetName = "StartUpCost"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fStartUpCost_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+    
+        # load process cost projections - No Load Cost
+        sSheetName = "NoLoadCost"
+        dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        for index, row in dfData.iterrows():
+            iRegionProcessIndex = io_import_util.get_RegionGenProcessIndex(objRegion, row["ProcessName"])
+            objCountry.lsProcessAssump[iRegionProcessIndex].fNoLoadCost_YS = io_import_util.DataAdjustWithTimePeriod(row, iAllYearSteps_YS)
+        
+        
+    # calculate Capital Recovery Factor
+    for objProcess in objCountry.lsProcessAssump:
+
+        iPlantLife = objProcess.TechnicalLife
+        fDiscountRateP_YS = objProcess.fDiscountRate_YS[:] / 100
+        objProcess.fCRF_YS = ( fDiscountRateP_YS[:] * pow((1+fDiscountRateP_YS[:]), iPlantLife) ) / ( pow((1+fDiscountRateP_YS[:]), iPlantLife) - 1)
+    
         print("")
     
     return
+
 
 
 

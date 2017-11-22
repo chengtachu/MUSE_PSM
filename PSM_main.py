@@ -20,6 +20,11 @@ if __name__ == '__main__':
     # import country assumptions (Data/ExoAssumption)
     instance.get_CountryAssumption()
 
+    # imort market settings (Data/ExoAssumption)
+    instance.get_MarketSettings()
+
+    # import zone assumptions (Data/ExoAssumption)
+    instance.get_ZoneAssumption()
 
 
 

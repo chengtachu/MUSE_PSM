@@ -4,6 +4,7 @@ import numpy as np
 
 import io_import_instance
 import io_import_regionNcountry
+import io_import_market
 
 class Instance:
     """ create an instance object  """
@@ -63,38 +64,82 @@ class Instance:
     def get_RegionAssumption(self):
         """ get assumptions on region level """
         
-        # import region technical assumptions
-        io_import_regionNcountry.get_RegionTechAssump(self)
+        for objRegion in self.lsRegion:
+            
+            # import region technical assumptions
+            io_import_regionNcountry.get_RegionTechAssump(objRegion, self.lsProcessDefObjs, self.iAllYearSteps_YS)
+            
+            # import region cost assumptions
+            io_import_regionNcountry.get_RegionCostAssump(objRegion, self.iAllYearSteps_YS)
         
-        # import region cost assumptions
-        
-        
-        print("test")
-
         return
 
 
 
     def get_CountryAssumption(self):
-        """ get assumptions on region level """
+        """ get assumptions on country level """
         
-        # process technical assumptions
         for objRegion in self.lsRegion:
+            
             for objCountry in objRegion.lsCountry:
             
-                # import country technical assumptions (override region)
-        
-                # import country cost assumptions (override region)
+                # copy all process assumption from region
+                for objProcess in objRegion.lsProcessAssump :
+                    objCountry.lsProcessAssump = objRegion.lsProcessAssump.copy()
                 
-                print("test")
-
+                # import country technical assumptions (override region)
+                io_import_regionNcountry.get_CountryTechAssump(objRegion, objCountry, self.iAllYearSteps_YS)
+                
+                # import country cost assumptions (override region)
+                io_import_regionNcountry.get_CountryCostAssump(objRegion, objCountry, self.iAllYearSteps_YS)
+                
         return
 
 
 
+    def get_MarketSettings(self):
+        """ market settings """
+        
+        for objMarket in self.lsMarket:
+            
+            # import market policy
+            io_import_market.get_MarketPolicy(objMarket, self.iAllYearSteps_YS)
+            
+            # import market transmission
+            io_import_market.get_MarketTransmission(objMarket)
+            
+        return
 
 
 
+    def get_ZoneAssumption(self):
+        """ market settings """
+        
+        for objMarket in self.lsMarket:
+            
+            for objZone in objMarket.lsZone:
+                
+                # import zone technical assumptoin
+                io_import_market.get_ZoneTechAssump(objZone, self.iAllYearSteps_YS)
+            
+                # update index to region and country
+                for indexRegion, objRegion in enumerate(self.lsRegion):
+                    for indexCountry, objCountry in enumerate(objRegion.lsCountry):
+                        if objZone.sZone in objCountry.sZone_ZN:
+                            objZone.iRegionIndex = indexRegion
+                            objZone.iCountryIndex = indexCountry
+                
+                # copy available process
+                #io_import_market.get_ZoneProcess(self)
+                
+                # import exist process
+                
+                # import process develop limit
+                
+                # import renewable output
+                
+            
+        return
 
 
 

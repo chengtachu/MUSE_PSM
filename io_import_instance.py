@@ -150,7 +150,7 @@ def get_Market(objInstanceConfig):
             if Market == objMarket.sMarket:
                 objMarket.lsZone.append(cls_market.Zone(Zone))
                 break
-                
+    
     return lsMarket
 
 

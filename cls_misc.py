@@ -59,4 +59,26 @@ class RegionGenTech(ProcessDef):
 
 
 
+#------------ transmission -------------
+class Transmission:
+    """ cross-subregion transmission class  """
+
+    def __init__(self, dicParameters):
+        for sParameter, value in dicParameters.items():
+            setattr(self, sParameter, value)
+
+        ### simulation parameters
+        self.fTransLineInput_TS_YS = None   # MW
+        self.fTransLineOutput_TS_YS = None  # MW
+
+        self.fTransNewBuild_YS = None       # MW
+        self.fTransAccCapacity_YS = None    # MW
+
+        self.iLineStatus_TS_YS = None       # 0:Normal, 1:Congest
+
+        return
+
+
+
+
 
