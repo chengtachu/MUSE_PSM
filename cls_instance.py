@@ -32,10 +32,10 @@ class Instance:
         self.lsProcessDefObjs = io_import_instance.get_ProcessDef(_objInstanceConfig)
 
         # default current year is base year
-        self.iCurrentYear = self.iBaseYear
+        self.iForesightStartYear = self.iBaseYear
 
-        # year steps in foresignt period
-        self.iFSYearSteps_YS = self.get_FSYearSteps()
+        # new year steps and start year index in foresignt period
+        self.get_FSYearSteps()
 
         # Region structure
         self.lsRegion = io_import_instance.get_Region(_objInstanceConfig)
@@ -48,16 +48,20 @@ class Instance:
 
 
     def get_FSYearSteps(self):
-        """ get a array of current foresight year steps """
+        """ get/update a array of current foresight year steps """
         
         aFSYearSteps = []
         for iYear in self.iAllYearSteps_YS:
-            if iYear >= self.iCurrentYear and iYear <= (self.iCurrentYear + self.iForesight):
+            if iYear >= self.iForesightStartYear and iYear <= (self.iForesightStartYear + self.iForesight):
                 aFSYearSteps.append(iYear)
     
-        aCurrentFSYearSteps = np.array(aFSYearSteps)   
+        self.iFSYearSteps_YS = np.array(aFSYearSteps)  
+        for index, iYearStep in enumerate(self.iAllYearSteps_YS):
+            if iYearStep == self.iFSYearSteps_YS[0]:
+                self.iFSBaseYearIndex = index
+                break
     
-        return aCurrentFSYearSteps
+        return
 
 
 
