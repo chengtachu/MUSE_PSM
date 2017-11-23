@@ -61,7 +61,18 @@ def get_RegionGenProcessIndex(objRegion, sProcessName):
 
 
 
+def Get_ZoneVREOutput(dfData, lsTimeSlice, sColumn):
 
+    dfData = dfData.set_index("SN")
+    aNewData = np.zeros(len(lsTimeSlice))
+
+    aColumns = list(dfData.columns.values)
+    for sColumnName in aColumns:
+        if str(sColumnName) == sColumn:
+            aNewData[:] = dfData.loc[:, sColumnName]
+            break
+
+    return aNewData
 
 
 

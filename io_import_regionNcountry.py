@@ -22,7 +22,7 @@ def get_RegionTechAssump(objRegion, lsProcessDefObjs, iAllYearSteps_YS):
         dicParameters = {}
         for indexPR, sParameter in enumerate(row.index[1:]) :
             dicParameters[sParameter] = row[indexPR + 1]    # first column is ProcessName
-        objRegion.lsProcessAssump.append(cls_misc.RegionGenTech(row["ProcessName"], dicParameters))
+        objRegion.lsProcessAssump.append(cls_misc.RegionProcess(row["ProcessName"], dicParameters))
             
     # update definition from instance process definition
     for objProcess in objRegion.lsProcessAssump :

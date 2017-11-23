@@ -80,7 +80,6 @@ class Instance:
         """ get assumptions on country level """
         
         for objRegion in self.lsRegion:
-            
             for objCountry in objRegion.lsCountry:
             
                 # copy all process assumption from region
@@ -116,7 +115,6 @@ class Instance:
         """ market settings """
         
         for objMarket in self.lsMarket:
-            
             for objZone in objMarket.lsZone:
                 
                 # import zone technical assumptoin
@@ -130,14 +128,16 @@ class Instance:
                             objZone.iCountryIndex = indexCountry
                 
                 # copy available process
-                #io_import_market.get_ZoneProcess(self)
+                io_import_market.get_ZoneProcessAvail(self, objZone)
                 
                 # import exist process
+                io_import_market.get_ZoneExistProcess(self, objZone)
                 
                 # import process develop limit
+                io_import_market.get_ZoneProcessLimit(objZone, self.iAllYearSteps_YS)
                 
                 # import renewable output
-                
+                io_import_market.get_ZoneVREOutput(objZone, self.lsTimeSlice)
             
         return
 

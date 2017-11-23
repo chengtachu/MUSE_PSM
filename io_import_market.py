@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import copy
 
 import io_import_util
 import cls_misc
 
-
 _sFolderPath = "Data/Assumption/"
-
 
 def get_MarketPolicy(objMarket, iAllYearSteps_YS):
     ''' import market policy settings '''
@@ -71,6 +70,118 @@ def get_ZoneTechAssump(objZone, iAllYearSteps_YS):
 
     return
 
+
+def get_ZoneProcessAvail(instance, objZone):
+    ''' import market policy settings '''
+
+    sFilePath = _sFolderPath + "Zone/" + objZone.sZone + ".xlsx"
+
+    #### Policy constraints
+    sSheetName = "AvailableProcess"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+
+        for objCountryProcess in instance.lsRegion[objZone.iRegionIndex].lsCountry[objZone.iCountryIndex].lsProcessAssump:
+            if objCountryProcess.sProcessName == row["ProcessName"]:
+                objZone.lsProcessAssump.append(copy.copy(objCountryProcess))
+                break
+
+    return
+
+
+
+def get_ZoneExistProcess(instance, objZone):
+    ''' import exist process in the zone '''
+
+    sFilePath = _sFolderPath + "Zone_ExistProcess/" + objZone.sZone + ".xlsx"
+
+    #### Policy constraints
+    sSheetName = "ProcessList"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    dfData = dfData.drop(dfData.index[0])
+    
+    for index, row in dfData.iterrows():
+        dicParameters = {}
+        for indexPR, sParameter in enumerate(row.index[3:]) :
+            dicParameters[sParameter] = row[indexPR + 3]    # first three column are company, ProcessName and ProcessID
+        objZoneProcess = cls_misc.ZoneProcess( row["Company"], row["ProcessName"], row["ProcessID"], dicParameters)
+        
+        for objProcessDef in instance.lsProcessDefObjs:
+            if row["ProcessName"] == objProcessDef.sProcessName:
+                objZoneProcess.sFuel = objProcessDef.sFuel
+                objZoneProcess.sOperationMode = objProcessDef.sOperationMode
+                break
+
+        objZone.lsProcessExist.append(objZoneProcess)
+
+    return
+
+
+
+def get_ZoneProcessLimit(objZone, iAllYearSteps_YS):
+    ''' import process development limit in the zone '''
+
+    sFilePath = _sFolderPath + "Zone_Limit/" + objZone.sZone + ".xlsx"
+
+    # maximun capacity by year steps
+    sSheetName = "MaxCapacity"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        for objProcessAssump in objZone.lsProcessAssump:
+            if objProcessAssump.sProcessName == row["ProcessName"] :
+                objProcessAssump.fMaxCapacity_YS = io_import_util.DataAdjustWithTimePeriod(row,iAllYearSteps_YS)
+                break
+            
+    # maximun new install capacity per year steps
+    sSheetName = "MaxBuildRate"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        for objProcessAssump in objZone.lsProcessAssump:
+            if objProcessAssump.sProcessName == row["ProcessName"] :
+                objProcessAssump.fMaxBuildRate_YS = io_import_util.DataAdjustWithTimePeriod(row,iAllYearSteps_YS)
+                break
+
+    return
+
+
+
+def get_ZoneVREOutput(objZone, lsTimeSlice):
+    ''' import VRE output in the zone '''
+
+    sFilePath = _sFolderPath + "Zone_VRE/" + objZone.sZone + ".xlsx"
+
+    # Wind
+    sSheetName = "RenewableWindCF"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    objZone.aReWindOutput2025_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "2025")
+    objZone.aReWindOutput2530_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "2530")
+    objZone.aReWindOutput3035_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "3035")
+    objZone.aReWindOutput3540_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "3540")
+    objZone.aReWindOutput40UP_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "40UP")
+
+    # Offshore Wind
+    sSheetName = "RenewableOffWindCF"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    objZone.aReOffWindOutput2025_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "2025")
+    objZone.aReOffWindOutput2530_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "2530")
+    objZone.aReOffWindOutput3035_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "3035")
+    objZone.aReOffWindOutput3540_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "3540")
+    objZone.aReOffWindOutput4045_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "4045")
+    objZone.aReOffWindOutput4550_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "4550")
+    objZone.aReOffWindOutput50UP_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "50UP")
+
+    # PV
+    sSheetName = "RenewablePVCF"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    objZone.aRePVOutput_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "Mean")
+
+    
+    # Hydro
+    sSheetName = "RenewableHydro"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    objZone.aReHydroOutput_TS = io_import_util.Get_ZoneVREOutput(dfData, lsTimeSlice, "Mean")
+        
+    return
 
 
 

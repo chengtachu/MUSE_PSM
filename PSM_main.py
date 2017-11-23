@@ -26,8 +26,6 @@ if __name__ == '__main__':
     # import zone assumptions (Data/ExoAssumption)
     instance.get_ZoneAssumption()
 
-
-
     # flag for iterative execution, set it false to stop looping
     bContinune = True
 
