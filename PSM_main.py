@@ -10,9 +10,9 @@ def _MainFunction(instance):
     instance.update_MUSEInput()
     print('{:f}'.format(time.time() - start_time) + " external data loaded")
 
-    # construct optimization model, run and output
-    #for objRegion in instance.listRegionObjs:
-        #model_core.run(instance, objRegion, start_time)
+    # run the models
+    instance.run()
+
 
 
 if __name__ == '__main__':

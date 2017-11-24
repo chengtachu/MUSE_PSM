@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 
+import model_util
+
 class Market:
     """ create an region object  """
 
@@ -9,20 +11,89 @@ class Market:
         self.lsZone = list()            # a list of zone objects in this market
         self.lsGenCo = list()           # a list of generation companies in this market
         self.lsTransmission = list()            # a list of zone objects in this market
-        #self.RegionOutput = RegionOutput()
+        self.MarketOutput = MarketOutput()
         return
 
 
-class Zone:
-    """ create an country object  """
+    def modelrun_VI(self, instance):
+        """ run vertical integrated system model """
+        
+        print("VI model run")
+        
+        # model initiation
+        model_util.model_Init(self, instance)
+        
+        # construct transmission
+        
+        
+        # zone process initiation
+        
+        
+        # base year dispatch
+        
+        
+        # future investment
+        
+        
+        # save modelling result
+        
+        
+        return
+  
+    
+    def modelrun_WM(instance):
+        """ run wholesale market model """
+        
+        print("WM model run")
+        
+        return
 
-    def __init__(self, Zone):
-        self.sZone = Zone
-        self.iRegionIndex = 0
-        self.iCountryIndex = 0
-        self.lsProcessAssump = list()       # a list of country index under this region
-        self.lsProcessExist = list()        # a list of country index under this region
-        #self.CountryOutput = CountryOutput()
+
+
+class MarketOutput:
+
+    def __init__(self):
+
+        self.dicGenCapacity_YR_TC = {}
+        self.dicGenNewCapacity_YR_TC = {}
+
+        self.dicGeneration_YR_TS_TC = {}
+        self.dicPowerOutput_YR_TS_TC = {}
+        self.dicStrgInput_YR_TS_ST = {}
+        self.dicStrgOutput_YR_TS_ST = {}
+
+        self.dicGenCAPEX_YR_TC = {}
+        self.dicGenOPEX_YR_TC = {}
+        self.dicEmissionCost_YR_TC = {}
+        self.dicFuelCost_YR_TC = {}
+        self.dicRunningCost_YR_TC = {}
+        self.dicYearInvest_YR_TC = {}
+
+        self.dicFuelConsum_YR_TS_TC = {}
+
+        ## transmission
+        self.dicTransCapacity_YR_TR = {}
+        self.dicTransNewCapacity_YR_TR = {}
+        self.dicTransUsage_YR_TS_TR = {}
+        self.dicTransCAPEX_YR_TR = {}
+        self.dicTransOPEX_YR_TR = {}
+
+        ##### model endogenous output
+
+        self.dicGeneration_YR_TS = {}
+        self.dicGenTechCost_YR_TC = {}
+        self.dicGenCost_YR_TS = {}
+        self.dicGenWholeSalePrice_YR_TS = {}
+
+        self.dicCO2Emission_YR = {}
+        self.dicCO2Emission_YR_TS = {}
+        self.dicEmissionCaptured_YR_TS = {}
+        self.dicFuelConsum_YR_TS_CR = {}        
+
+        ##### ABM model
+        self.dicGeneratorProfit_YR_GR = {}
+        self.dicGeneratorCapacity_YR_TC_GR = {}
+
         return
 
 

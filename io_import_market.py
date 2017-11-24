@@ -185,4 +185,39 @@ def get_ZoneVREOutput(objZone, lsTimeSlice):
 
 
 
+def update_ZonePowerHeatDemand(objZone, lsTimeSlice, iAllYearSteps_YS):
+    ''' import process development limit in the zone '''
+
+    _sFolderPath = "Data/Input/"
+
+    # update power demand
+    sFilePath = _sFolderPath + "Zone_DemandPower/" + objZone.sZone + ".xlsx"
+    sSheetName = "DemandProfile"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    objZone.fPowerDemand_TS_YS = io_import_util.GetDataAdjustWithTimePeriodAndSlice(dfData, iAllYearSteps_YS, lsTimeSlice)
+    
+    # update heat demand
+    sFilePath = _sFolderPath + "Zone_DemandHeat/" + objZone.sZone + ".xlsx"
+    sSheetName = "DemandProfile"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    objZone.fHeatDemand_TS_YS = io_import_util.GetDataAdjustWithTimePeriodAndSlice(dfData, iAllYearSteps_YS, lsTimeSlice)
+
+    return
+
+
+
+def update_ZonePowerImport(objZone, lsTimeSlice, iAllYearSteps_YS):
+    ''' import process development limit in the zone '''
+
+    _sFolderPath = "Data/Input/"
+    
+    # update power import
+    sFilePath = _sFolderPath + "Zone_Import/" + objZone.sZone + ".xlsx"
+    sSheetName = "DemandProfile"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    objZone.fPowerImport_TS_YS = io_import_util.GetDataAdjustWithTimePeriodAndSlice(dfData, iAllYearSteps_YS, lsTimeSlice)
+    
+    return
+
+
 

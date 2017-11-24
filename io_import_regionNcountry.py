@@ -219,8 +219,6 @@ def get_CountryCostAssump(objRegion, objCountry, iAllYearSteps_YS):
         fDiscountRateP_YS = objProcess.fDiscountRate_YS[:] / 100
         objProcess.fCRF_YS = ( fDiscountRateP_YS[:] * pow((1+fDiscountRateP_YS[:]), iPlantLife) ) / ( pow((1+fDiscountRateP_YS[:]), iPlantLife) - 1)
     
-        print("")
-    
     return
 
 
@@ -246,15 +244,25 @@ def get_CountryFuelPrice(instance, objCountry):
     ''' update carbon price in a country '''
 
     # check if commodity object exist in the country
-    if hasattr(objCountry, 'lsCommodity'):
+    if not hasattr(objCountry, 'lsCommodity'):
         objCountry.lsCommodity = list(instance.lsCommodity)
 
     _sFolderPath = "Data/Input/"
     sFilePath = _sFolderPath + "Country_FuelPrice/" + objCountry.sCountry + ".xlsx"
 
-
-
-
+    for objCommodity in objCountry.lsCommodity:
+        sSheetName = objCommodity.sCommodityName
+        
+        dfData = None
+        
+        try:
+            dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+        except:
+            pass
+        
+        if dfData is not None:
+            setattr(objCommodity, "fFuelPrice_TS_YS", \
+                    io_import_util.GetDataAdjustWithTimePeriodAndSlice(dfData, instance.iAllYearSteps_YS, instance.lsTimeSlice))
 
     return
 

@@ -34,7 +34,7 @@ class Instance:
         # default current year is base year
         self.iForesightStartYear = self.iBaseYear
 
-        # new year steps and start year index in foresignt period
+        # new year steps and start year index in foresignt period  (iFSBaseYearIndex)
         self.get_FSYearSteps()
 
         # Region structure
@@ -159,10 +159,32 @@ class Instance:
                 # fuel price
                 io_import_regionNcountry.get_CountryFuelPrice(self, objCountry)
             
+        for objMarket in self.lsMarket:
+            for objZone in objMarket.lsZone:
             
+                # power demand and heat demand
+                io_import_market.update_ZonePowerHeatDemand(objZone, self.lsTimeSlice, self.iAllYearSteps_YS)
+
+                # import/export
+                io_import_market.update_ZonePowerImport(objZone, self.lsTimeSlice, self.iAllYearSteps_YS)
             
         return
 
 
 
+    def run(self):
+        """ run the models """
 
+        for objMarket in self.lsMarket:
+            
+            if objMarket.sModel == "VI":
+                objMarket.modelrun_VI(self)
+                
+            elif objMarket.sModel == "WM":
+                objMarket.modelrun_WM(self)
+
+        return
+    
+    
+    
+    

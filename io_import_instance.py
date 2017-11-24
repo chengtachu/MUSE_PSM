@@ -6,6 +6,7 @@ import io_import_util
 import cls_misc
 import cls_region
 import cls_market
+import cls_zone
 
 
 _sFolderPath = "Data/"
@@ -135,7 +136,7 @@ def get_Market(objInstanceConfig):
     # get market object
     lsMarket = list()
 
-    # create region object
+    # create market object
     dfMarket = objInstanceConfig.dfStructure.drop_duplicates("Market")
 
     for sMarket in dfMarket.loc[:,"Market"]:
@@ -148,7 +149,14 @@ def get_Market(objInstanceConfig):
 
         for objMarket in lsMarket:
             if Market == objMarket.sMarket:
-                objMarket.lsZone.append(cls_market.Zone(Zone))
+                objMarket.lsZone.append(cls_zone.Zone(Zone))
+                break
+    
+    # market model
+    for index, row in objInstanceConfig.dfMarket.iterrows():
+        for objMarket in lsMarket:
+            if objMarket.sMarket == row["Market"]:
+                objMarket.sModel = row["Model"]
                 break
     
     return lsMarket

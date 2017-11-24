@@ -23,29 +23,60 @@ def DataAdjustWithTimePeriod(dfDatarow , iAllYearSteps_YS):
     iNewData_YS = np.zeros(len(iAllYearSteps_YS))
 
     # imported data year step setting (check the column headers)
-    aDataTimePefiod = list()
+    iDataYS_YS = list()
     for iYear in dfDatarow.index:
         if type(iYear) is int:
             if iYear > 1950 and iYear <= 2100:
-                aDataTimePefiod.append(iYear)
+                iDataYS_YS.append(iYear)
 
-    for indexDefault, iDefaultTimePeriod in enumerate(iAllYearSteps_YS):
-        for indexData, iDataTimePeriod in enumerate(aDataTimePefiod):
+    for indexDefault, iDefaultYS in enumerate(iAllYearSteps_YS):
+        for indexData, iDataYS in enumerate(iDataYS_YS):
             
-            if iDataTimePeriod == iDefaultTimePeriod:
-                iNewData_YS[indexDefault] = dfDatarow[iDataTimePeriod]
+            if iDataYS == iDefaultYS:
+                iNewData_YS[indexDefault] = dfDatarow[iDataYS]
                 break
             
-            if iDataTimePeriod > iDefaultTimePeriod:
+            if iDataYS > iDefaultYS:
                 # do interpolation if the given data does not match the instance timep preiod setting
-                iPreTimePeriod = aDataTimePefiod[indexData-1]
-                iNextTimePeriod = iDataTimePeriod
-                sPreTPData = dfDatarow[iPreTimePeriod]
-                sNextTPData = dfDatarow[iNextTimePeriod]
-                iNewData_YS[indexDefault] = sPreTPData + (sNextTPData-sPreTPData)*(iDefaultTimePeriod-iPreTimePeriod)/(iNextTimePeriod-iPreTimePeriod)
+                iPreYS = iDataYS_YS[indexData-1]
+                iNextYS = iDataYS
+                sPreTPData = dfDatarow[iPreYS]
+                sNextTPData = dfDatarow[iNextYS]
+                iNewData_YS[indexDefault] = sPreTPData + (sNextTPData-sPreTPData)*(iDefaultYS-iPreYS)/(iNextYS-iPreYS)
                 break
 
     return iNewData_YS
+
+
+
+def GetDataAdjustWithTimePeriodAndSlice(dfData , iAllYearSteps_YS, lsTimeSlice):
+    ''' formate data in defined time period and time slice '''
+
+    # imported data time period setting
+    aColumns = list(dfData.columns.values)
+    fDataYS_YS = list()
+    for iYear in aColumns:
+        if type(iYear) is int:
+            fDataYS_YS.append(iYear)
+
+    dfData = dfData.set_index("SN")
+    aNewData = np.zeros((len(lsTimeSlice), len(iAllYearSteps_YS)))
+
+    for indexYS, iDefaultYS in enumerate(iAllYearSteps_YS):
+        for indexData, iDataYS in enumerate(fDataYS_YS):
+            if iDataYS == iDefaultYS:
+                aNewData[:, indexYS] = dfData.loc[:, iDataYS]
+                break
+            if iDataYS > iDefaultYS:
+                # do interpolation if the given data does not match the instance timep preiod setting
+                iPreYS = fDataYS_YS[indexData-1]
+                iNextYS = iDataYS
+                sPreTPData = dfData.loc[:, iPreYS]
+                sNextTPData = dfData.loc[:, iNextYS]
+                aNewData[:, indexYS] = sPreTPData[:] + (sNextTPData[:]-sPreTPData[:])*(iDefaultYS-iPreYS)/(iNextYS-iPreYS)
+                break
+
+    return aNewData
 
 
 
@@ -62,7 +93,8 @@ def get_RegionGenProcessIndex(objRegion, sProcessName):
 
 
 def Get_ZoneVREOutput(dfData, lsTimeSlice, sColumn):
-
+    ''' return the default VRE output by time-slice '''
+    
     dfData = dfData.set_index("SN")
     aNewData = np.zeros(len(lsTimeSlice))
 
