@@ -225,4 +225,39 @@ def get_CountryCostAssump(objRegion, objCountry, iAllYearSteps_YS):
 
 
 
+def get_CountryCarbonPrice(objCountry, iAllYearSteps_YS):
+    ''' update carbon price in a country '''
+
+    _sFolderPath = "Data/Input/"
+    sFilePath = _sFolderPath + "Country_CarbonPrice/" + objCountry.sCountry + ".xlsx"
+
+    sSheetName = "Policy"
+    dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
+    for index, row in dfData.iterrows():
+        
+        if row["DataCode"] == "PowerCarbonCost" :
+            objCountry.fCarbonCost_YS = io_import_util.DataAdjustWithTimePeriod(row,iAllYearSteps_YS)
+
+    return
+
+
+
+def get_CountryFuelPrice(instance, objCountry):
+    ''' update carbon price in a country '''
+
+    # check if commodity object exist in the country
+    if hasattr(objCountry, 'lsCommodity'):
+        objCountry.lsCommodity = list(instance.lsCommodity)
+
+    _sFolderPath = "Data/Input/"
+    sFilePath = _sFolderPath + "Country_FuelPrice/" + objCountry.sCountry + ".xlsx"
+
+
+
+
+
+    return
+
+
+
 

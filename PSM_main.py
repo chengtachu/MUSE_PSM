@@ -4,6 +4,15 @@ import time
 
 import cls_instance
 
+def _MainFunction(instance):
+
+    # import external data from other module (Data/Input)
+    instance.update_MUSEInput()
+    print('{:f}'.format(time.time() - start_time) + " external data loaded")
+
+    # construct optimization model, run and output
+    #for objRegion in instance.listRegionObjs:
+        #model_core.run(instance, objRegion, start_time)
 
 
 if __name__ == '__main__':
@@ -19,12 +28,14 @@ if __name__ == '__main__':
 
     # import country assumptions (Data/ExoAssumption)
     instance.get_CountryAssumption()
+    print('{:f}'.format(time.time() - start_time) + " region and country assumption loaded")
 
     # imort market settings (Data/ExoAssumption)
     instance.get_MarketSettings()
 
     # import zone assumptions (Data/ExoAssumption)
     instance.get_ZoneAssumption()
+    print('{:f}'.format(time.time() - start_time) + " market and zone data loaded")
 
     # flag for iterative execution, set it false to stop program
     bContinune = True
@@ -32,7 +43,7 @@ if __name__ == '__main__':
     while( bContinune == True):
 
         # first run with base year, then continue util the bContinune is false
-        #_MainFunction(instance)
+        _MainFunction(instance)
 
         sNewStartYear = input("New foresight start year: ")     # get the first time period of current iteration
 

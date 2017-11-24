@@ -101,7 +101,7 @@ class Instance:
 
 
     def get_MarketSettings(self):
-        """ market settings """
+        """ load market settings """
         
         for objMarket in self.lsMarket:
             
@@ -116,7 +116,7 @@ class Instance:
 
 
     def get_ZoneAssumption(self):
-        """ market settings """
+        """ load zone assumptions """
         
         for objMarket in self.lsMarket:
             for objZone in objMarket.lsZone:
@@ -146,6 +146,22 @@ class Instance:
         return
 
 
+
+    def update_MUSEInput(self):
+        """ update external data from MUSE """
+        
+        for objRegion in self.lsRegion:
+            for objCountry in objRegion.lsCountry:
+                
+                # carbon price
+                io_import_regionNcountry.get_CountryCarbonPrice(objCountry, self.iAllYearSteps_YS)
+                
+                # fuel price
+                io_import_regionNcountry.get_CountryFuelPrice(self, objCountry)
+            
+            
+            
+        return
 
 
 
