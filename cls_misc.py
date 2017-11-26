@@ -92,6 +92,22 @@ class Transmission:
         return
 
 
+class ConnectionPath:
+    """ cross-zone connection topology  """
+
+    def __init__(self):
+        # basic technical assumption
+        self.sDestination = None
+        self.iDestZoneIndex = None
+        self.iHopCount = 0
+        self.lsHops = list()
+        self.lsFlowPathOut = list()
+        self.lsFlowPathIn = list()
+        self.fDistance = None
+        self.fAvailTransCapacity = None
+        self.fLineLoss = None
+
+        return
 
 
 

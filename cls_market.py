@@ -2,6 +2,7 @@
 
 
 import model_util
+import model_util_trans
 
 class Market:
     """ create an region object  """
@@ -24,7 +25,8 @@ class Market:
         model_util.model_Init(self, instance)
         
         # construct transmission
-        
+        iHopLimit = 2
+        model_util_trans.constructTrans(self, instance, iHopLimit)
         
         # zone process initiation
         
