@@ -112,7 +112,7 @@ def get_ZoneExistProcess(instance, objZone):
                 objZoneProcess.sOperationMode = objProcessDef.sOperationMode
                 break
 
-        objZone.lsProcessExist.append(objZoneProcess)
+        objZone.lsProcess.append(objZoneProcess)
 
     return
 

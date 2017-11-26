@@ -34,7 +34,7 @@ class Instance:
         # default current year is base year
         self.iForesightStartYear = self.iBaseYear
 
-        # new year steps and start year index in foresignt period  (iFSBaseYearIndex)
+        # new year steps and start year index in foresignt period  (iFSYearSteps_YS, iFSBaseYearIndex)
         self.get_FSYearSteps()
 
         # Region structure
