@@ -14,6 +14,7 @@ class Zone:
         self.lsProcess = list()             # a list of exist process in current modelling
         self.lsProcessFuture = list()       # a list of future process
         self.lsProcessDecomm = list()       # a list of decommited process
+        self.lsConnectPath = list()
         self.CountryOutput = CountryOutput()
         return
 

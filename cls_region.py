@@ -18,7 +18,9 @@ class Country:
     def __init__(self, Country):
         self.sCountry = Country
         self.sZone_ZN = list()              # a list of zone ID under this country
-        self.lsProcessAssump = list()          # a list of country index under this region
+        self.lsProcessAssump = list()       # a list of country index under this region
+        # self.lsCommodity                  # a list of commodity in the country
+        # self.fCarbonCost_YS
         #self.iZoneIndex_ZN = list()        # a list of zone index under this country
         #self.CountryOutput = CountryOutput()
         return

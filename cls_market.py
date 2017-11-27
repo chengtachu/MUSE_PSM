@@ -28,8 +28,8 @@ class Market:
         iHopLimit = 2
         model_util_trans.constructTrans(self, instance, iHopLimit)
         
-        # zone process initiation
-        
+        # zone process initiation and calculate variable generation cost
+        model_util.process_Init(self, instance)
         
         # base year dispatch
         

@@ -68,6 +68,9 @@ class ZoneProcess(ProcessDef):
         self.sProcessID = ProcessID
         for sParameter, value in dicParameters.items():
             setattr(self, sParameter, value)
+            
+        # fVariableGenCos_TS_YS
+              
         return
 
 

@@ -16,7 +16,7 @@ def model_Init(objMarket, instance):
         ZoneExistProcess_Init(objMarket, instance)
         
         # process variables initiation
-        ZoneProcess_Init(objMarket, instance)
+        ZoneProcessVar_Init(objMarket, instance)
 
         # transmission cost initiation
         MarketTransCost_Init(objMarket, instance)
@@ -53,14 +53,16 @@ def ZoneExistProcess_Init(objMarket, instance):
             
     # move decommited plant into decommitioned list
     for objZone in objMarket.lsZone:
+        
+        # move decommited plant into decommitioned list 
         for objProcess in list(objZone.lsProcess):
             if objProcess.DeCommitTime <= instance.iForesightStartYear:
                 objZone.lsProcessDecomm.append(copy.copy(objProcess))
                 objZone.lsProcess.remove(objProcess)
 
-    # don't move plant decommited in the future into future list, if the data read from database, they should be planned for the near future
-     
-    
+        # don't move plant decommited in the future into future list, if the data read from database, they should be planned for the near future
+
+
     # calculate derived parameters for existing plants 
     for objZone in objMarket.lsZone:
         for objProcess in objZone.lsProcess:
@@ -87,7 +89,7 @@ def ZoneExistProcess_Init(objMarket, instance):
 
 
 
-def ZoneProcess_Init(objMarket, instance):
+def ZoneProcessVar_Init(objMarket, instance):
     ''' initiate process variables '''
         
     for objZone in objMarket.lsZone:
@@ -144,6 +146,92 @@ def MarketAgent_Init(objMarket, instance):
         objGenerator.fAssetsValue_YR = np.zeros(len(instance.iAllYearSteps_YS))
         objGenerator.fNewInvestment_YR = np.zeros(len(instance.iAllYearSteps_YS))
 
+    return
+
+
+
+def process_Init(objMarket, instance):
+    ''' commit and decommit process, and calculate derived variables '''
+        
+    # move processes in lsProcess, lsProcessDecomm and lsProcessFuture
+    for objZone in objMarket.lsZone:
+
+        # move decommited plant into decommitioned list 
+        for objProcess in list(objZone.lsProcess):
+            if objProcess.DeCommitTime <= instance.iForesightStartYear:
+                objZone.lsProcessDecomm.append(copy.copy(objProcess))
+                objZone.lsProcess.remove(objProcess)
+    
+        # move in new commisioned plants
+        for objProcess in list(objZone.lsProcessFuture):
+            if objProcess.CommitTime <= instance.iForesightStartYear:
+                objZone.lsProcess.append(copy.copy(objProcess))
+                objZone.lsProcessFuture.remove(objProcess)
+           
+            
+    # calculate variable generation cost
+    for objZone in objMarket.lsZone:
+        
+        objCountry = instance.lsRegion[objZone.iRegionIndex].lsCountry[objZone.iCountryIndex]
+        
+        for objProcess in list(objZone.lsProcess):
+            
+            # process efficiency
+            if "CHP" in objProcess.sProcessName:
+                fProcessEff = max(objProcess.EffPowerCM, objProcess.EffPowerBP)
+            else:
+                fProcessEff = objProcess.EffPowerCM
+                    
+            
+            # -------- running cost ------------
+            fRunningCost = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+            fRunningCost.fill(objZone.RunningCost)
+    
+            # sum up generation cost
+            objProcess.fVariableGenCos_TS_YS = fRunningCost
+    
+            # dispatchable plant (thermal generation, except some large hyro)
+            if objProcess.sOperationMode == "Dispatch":
+    
+                # get the carrier object
+                for objCommodity in objCountry.lsCommodity:
+                    if objCommodity.sCommodityName == objProcess.sFuel:
+                        objFuel = objCommodity
+                        break
+
+                # ----------- fuel cost --------------
+                # get fuel price (USD/LOE)
+                fFuelPrice = objFuel.fFuelPrice_TS_YS
+    
+                # conver fuel cost from (USD/LOE) to (USD/kWh)  
+                # fFuelPrice = fFuelPrice / 10.46  USD/LOE -> USD/kWh
+                # fFuelPrice = fFuelPrice / 277.8  MUSD/PJ -> MUSD/GWh = USD/kWh
+                fFuelPrice = fFuelPrice / 10.46
+    
+                # get plant tech conversion efficiency (USD/kWh)
+                fFuelCost = fFuelPrice / (fProcessEff / 100)
+    
+    
+                # ----------- emission cost ---------------
+                # emission factor (kg/MJ = MTon/PJ)
+                fEmissionFactor = objFuel.fEmissionFactor_CO2
+                # fuel consumption per kWh
+                fFuelConsumption = 1 / (fProcessEff / 100)    # kWh
+                fFuelConsumption = fFuelConsumption * 3.6    # kWh -> MJ (per kWh)
+                # capture rate
+                fCCSCaptureRate = objProcess.CCSCaptureRate / 100
+                # carbon cost (USD/Tonne -> USD/kg)
+                fCarbonCost = objCountry.fCarbonCost_YS / 1000
+    
+                # emission cost  (kg/MJ) * (MJ/kWh) * (USD/kg) = USD/kWh
+                fEmissionCost = fEmissionFactor * fFuelConsumption * (1-fCCSCaptureRate) * fCarbonCost
+                if objCarrier.sCarrierType == "Bio":
+                    fEmissionCost = fEmissionFactor * fFuelConsumption * fCCSCaptureRate * fCarbonCost * -1
+    
+                # sum up generation cost
+                objProcess.fVariableGenCos_TS_YS += fFuelCost + fEmissionCost
+                objProcess.fVariableGenCos_TS_YS = np.around(objProcess.fVariableGenCos_TS_YS, 4)
+            
     return
 
 

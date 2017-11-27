@@ -5,7 +5,7 @@ import numpy as np
 
 import cls_misc
 
-def constructConnectTopology(objMarket, instance, iHopLimit):
+def constructTrans(objMarket, instance, iHopLimit):
     ''' construct and initiate nodes and path '''
     
     # recursive
@@ -19,14 +19,14 @@ def constructConnectTopology(objMarket, instance, iHopLimit):
                 objNewPath.lsHops.append(objTrans.To)
 
                 objNewPath.sDestination = objTrans.To
-                for index, objZone in enumerate(objMarket.lsZone):
-                    if objZone.sZone == objNewPath.sDestination:
+                for index, objZoneDes in enumerate(objMarket.lsZone):
+                    if objZoneDes.sZone == objNewPath.sDestination:
                         objNewPath.iDestZoneIndex = index
                         break
 
                 objNewPath.iHopCount = iExpendLevel
                 objNewPath.fAvailTransCapacity = np.zeros(len(instance.lsTimeSlice))
-                objNewPath.fLineLoss = objTrans.LossRate / 100
+                objNewPath.fLineLoss = objTrans.FlowLossRate / 100
                 # path out
                 objNewPath.lsFlowPathOut.append(indexLine)
                 # path in
@@ -61,23 +61,23 @@ def _constructNextNode(instance, objMarket, objZone, objExistPath, iExpendLevel,
 
     for indexLine, objTrans in enumerate(objMarket.lsTransmission):
         if objTrans.From == sCurrentNode:
-            if objTrans.To not in objExistPath.listHops:
+            if objTrans.To not in objExistPath.lsHops:
                 objNewPath = copy.deepcopy(objExistPath)
                 objNewPath.lsHops.append(objTrans.To)
 
-                objNewPath.sDestination = objTrans[indexLine].To
-                for index, objZone in enumerate(objMarket.lsZone):
-                    if objZone.sZone == objNewPath.sDestination:
+                objNewPath.sDestination = objTrans.To
+                for index, objZoneDes in enumerate(objMarket.lsZone):
+                    if objZoneDes.sZone == objNewPath.sDestination:
                         objNewPath.iDestZoneIndex = index
                         break
 
                 objNewPath.iHopCount = iExpendLevel
                 objNewPath.fAvailTransCapacity = np.zeros(len(instance.lsTimeSlice))
-                objNewPath.fLineLoss = 1 - ( (1 - objNewPath.fLineLoss) * ( 1 - objTrans.LossRate/100) )
+                objNewPath.fLineLoss = 1 - ( (1 - objNewPath.fLineLoss) * ( 1 - objTrans.FlowLossRate/100) )
                 # path out
                 objNewPath.lsFlowPathOut.append(indexLine)
                 # path in
-                objNewPath.lsFlowPathIn.append(_FindPathIn(objMarket, objZone.sZone, objNewPath.sDestination))
+                objNewPath.lsFlowPathIn.append(_FindPathIn(objMarket, sCurrentNode, objNewPath.sDestination))
 
                 objZone.lsConnectPath.append(objNewPath)
 
