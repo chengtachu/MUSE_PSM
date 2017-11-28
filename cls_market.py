@@ -3,15 +3,17 @@
 
 import model_util
 import model_util_trans
+import model_VI
 
 class Market:
     """ create an region object  """
 
     def __init__(self, Market):
         self.sMarket = Market
-        self.lsZone = list()            # a list of zone objects in this market
-        self.lsGenCo = list()           # a list of generation companies in this market
-        self.lsTransmission = list()            # a list of zone objects in this market
+        self.lsZone = list()                # a list of zone objects in this market
+        self.lsGenCo = list()               # a list of generation companies in this market
+        self.lsTransmission = list()        # a list of zone objects in this market
+        self.lsAllDispatchPlants = list()   # a list all dispatchable plants in the market (key information) index to zone.lsProcess
         self.MarketOutput = MarketOutput()
         return
 
@@ -32,7 +34,7 @@ class Market:
         model_util.process_Init(self, instance)
         
         # base year dispatch
-        
+        model_VI.dispatch_Main(self, instance, instance.iFSBaseYearIndex)
         
         # future investment
         

@@ -184,11 +184,11 @@ def process_Init(objMarket, instance):
                     
             
             # -------- running cost ------------
-            fRunningCost = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            fRunningCost.fill(objZone.RunningCost)
+            fRunningCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+            fRunningCost_TS_YS.fill(objProcess.RunningCost)
     
             # sum up generation cost
-            objProcess.fVariableGenCos_TS_YS = fRunningCost
+            objProcess.fVariableGenCost_TS_YS = fRunningCost_TS_YS
     
             # dispatchable plant (thermal generation, except some large hyro)
             if objProcess.sOperationMode == "Dispatch":
@@ -201,15 +201,15 @@ def process_Init(objMarket, instance):
 
                 # ----------- fuel cost --------------
                 # get fuel price (USD/LOE)
-                fFuelPrice = objFuel.fFuelPrice_TS_YS
+                fFuelPrice_TS_YS = objFuel.fFuelPrice_TS_YS
     
                 # conver fuel cost from (USD/LOE) to (USD/kWh)  
                 # fFuelPrice = fFuelPrice / 10.46  USD/LOE -> USD/kWh
                 # fFuelPrice = fFuelPrice / 277.8  MUSD/PJ -> MUSD/GWh = USD/kWh
-                fFuelPrice = fFuelPrice / 10.46
+                fFuelPrice_TS_YS = fFuelPrice_TS_YS / 10.46
     
                 # get plant tech conversion efficiency (USD/kWh)
-                fFuelCost = fFuelPrice / (fProcessEff / 100)
+                fFuelCost_TS_YS = fFuelPrice_TS_YS / (fProcessEff / 100)
     
     
                 # ----------- emission cost ---------------
@@ -221,16 +221,17 @@ def process_Init(objMarket, instance):
                 # capture rate
                 fCCSCaptureRate = objProcess.CCSCaptureRate / 100
                 # carbon cost (USD/Tonne -> USD/kg)
-                fCarbonCost = objCountry.fCarbonCost_YS / 1000
+                fCarbonCost_YS = objCountry.fCarbonCost_YS / 1000
     
                 # emission cost  (kg/MJ) * (MJ/kWh) * (USD/kg) = USD/kWh
-                fEmissionCost = fEmissionFactor * fFuelConsumption * (1-fCCSCaptureRate) * fCarbonCost
-                if objCarrier.sCarrierType == "Bio":
-                    fEmissionCost = fEmissionFactor * fFuelConsumption * fCCSCaptureRate * fCarbonCost * -1
+                fEmissionCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+                fEmissionCost_TS_YS[:,:] = fEmissionFactor * fFuelConsumption * (1-fCCSCaptureRate) * fCarbonCost_YS
+                if objFuel.sCategory == "biofuel":
+                    fEmissionCost_TS_YS += fEmissionFactor * fFuelConsumption * fCCSCaptureRate * fCarbonCost_YS * -1
     
                 # sum up generation cost
-                objProcess.fVariableGenCos_TS_YS += fFuelCost + fEmissionCost
-                objProcess.fVariableGenCos_TS_YS = np.around(objProcess.fVariableGenCos_TS_YS, 4)
+                objProcess.fVariableGenCost_TS_YS += fFuelCost_TS_YS + fEmissionCost_TS_YS
+                objProcess.fVariableGenCost_TS_YS = np.around(objProcess.fVariableGenCos_TS_YS, 4)
             
     return
 

@@ -15,6 +15,8 @@ class Zone:
         self.lsProcessFuture = list()       # a list of future process
         self.lsProcessDecomm = list()       # a list of decommited process
         self.lsConnectPath = list()
+        # self.fPowerOutput_TS_YS           # power output at the time-slice
+        # self.fResDemand_TS_YS        # residulal demand at the time-slice
         self.CountryOutput = CountryOutput()
         return
 

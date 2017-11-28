@@ -48,7 +48,7 @@ class ProcessDef:
 
 
 class RegionProcess(ProcessDef):
-    """ regional process class  """
+    """ regional process class assumption  """
 
     def __init__(self, ProcessName, dicParameters):
         # basic technical assumption for region
@@ -69,7 +69,7 @@ class ZoneProcess(ProcessDef):
         for sParameter, value in dicParameters.items():
             setattr(self, sParameter, value)
             
-        # fVariableGenCos_TS_YS
+        # fVariableGenCost_TS_YS
               
         return
 
