@@ -2,6 +2,7 @@
 
 import numpy as np
 
+import cls_misc
 import io_import_instance
 import io_import_regionNcountry
 import io_import_market
@@ -24,6 +25,9 @@ class Instance:
 
         # time slice
         self.lsTimeSlice = io_import_instance.get_TimeSlice(_objInstanceConfig)
+        
+        # structure day time slice
+        self.lsDayTimeSlice = self.set_DayTimeSlice()
 
         # energy commodity
         self.lsCommodity = io_import_instance.get_Commodity(_objInstanceConfig)
@@ -44,6 +48,37 @@ class Instance:
         self.lsMarket = io_import_instance.get_Market(_objInstanceConfig)
         
         return
+
+
+
+    def set_DayTimeSlice(self):
+        """ structure day time slice """
+        
+        lsDayTimeSlice = list()
+        iDaySliceStart = 0
+        iDaySliceEnd = 0
+    
+        while( iDaySliceStart < len(self.lsTimeSlice)):
+    
+            # find Day Start Slice and End Slice
+            sDay = ""
+            for iIndex in range(iDaySliceStart, len(self.lsTimeSlice)):
+                if self.lsTimeSlice[iIndex].iDayIndex == self.lsTimeSlice[iDaySliceStart].iDayIndex:
+                    iDaySliceEnd = iIndex
+                    sDay = self.lsTimeSlice[iIndex].sMonth + self.lsTimeSlice[iIndex].sDay
+                else:
+                    break
+    
+            lsDayTimeSlice.append(cls_misc.DayTimeSlice( MonthDay = sDay ))
+    
+            for iIndex in range(iDaySliceStart, iDaySliceEnd+1):
+                lsDayTimeSlice[-1].lsDiurnalTS.append(cls_misc.DiurnalTimeSlice( \
+                iTimeSliceIndex = iIndex, iRepHoursInYear = self.lsTimeSlice[iIndex].iRepHoursInYear, iRepHoursInDay = self.lsTimeSlice[iIndex].iRepHoursInDay ))
+                
+            # to next segement of time slice 
+            iDaySliceStart = iDaySliceEnd + 1
+
+        return lsDayTimeSlice
 
 
 

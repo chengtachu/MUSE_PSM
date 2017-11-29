@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 
-import model_util
-
 class Zone:
     """ create an country object  """
 
@@ -15,9 +13,30 @@ class Zone:
         self.lsProcessFuture = list()       # a list of future process
         self.lsProcessDecomm = list()       # a list of decommited process
         self.lsConnectPath = list()
-        # self.fPowerOutput_TS_YS           # power output at the time-slice
-        # self.fResDemand_TS_YS        # residulal demand at the time-slice
         self.CountryOutput = CountryOutput()
+        
+        ''' assumptions '''
+        # fPowerLossRatio_YS            # %        
+        # fPowerDemand_TS_YS            # MW
+        # fHeatDemand_TS_YS             # GJ
+        # fPowerImport_TS_YS            # MW
+        
+        # fMaxCapacity_YS               # MW
+        # fMaxBuildRate_YS              # MW
+            
+        # aReWindOutput2025_TS          # %
+        # aReWindOutput40UP_TS          # %
+        # aReOffWindOutput2025_TS       # %
+        # aReOffWindOutput50UP_TS       # %
+        
+        # aRePVOutput_TS                # %
+        # aReHydroOutput_TS             # %
+        
+        ''' variables '''
+        # fPowerOutput_TS_YS            # (MW) power output at the time-slice 
+        # fResDemand_TS_YS              # (MW) residulal demand at the time-slice        
+        
+        
         return
 
 

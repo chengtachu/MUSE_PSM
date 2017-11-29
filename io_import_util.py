@@ -81,7 +81,7 @@ def GetDataAdjustWithTimePeriodAndSlice(dfData , iAllYearSteps_YS, lsTimeSlice):
 
 
 def get_RegionGenProcessIndex(objRegion, sProcessName):
-    ''' return the index of process in region process list '''
+    ''' return the index of process in region process assumption list '''
     
     for index, objProcess in enumerate(objRegion.lsProcessAssump):
         if objProcess.sProcessName == sProcessName :

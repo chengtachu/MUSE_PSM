@@ -18,8 +18,8 @@ def model_Init(objMarket, instance):
         # process variables initiation
         ZoneProcessVar_Init(objMarket, instance)
 
-        # transmission cost initiation
-        MarketTransCost_Init(objMarket, instance)
+        # transmission initiation
+        MarketTransmission_Init(objMarket, instance)
 
         if objMarket.sModel == "WM":
             # initiate generator agent 
@@ -35,6 +35,10 @@ def ZoneDemand_Init(objMarket, instance):
     ''' calculate the required generation from power plants (include distribution loss and import/export) '''
         
     for objZone in objMarket.lsZone:
+        
+        # variable initiation
+        objZone.fPowerOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objZone.fResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
         
         # account for power distribution loss
         objZone.fPowerDemand_TS_YS[instance.iFSBaseYearIndex:,:] = \
@@ -97,7 +101,7 @@ def ZoneProcessVar_Init(objMarket, instance):
 
             objProcess.fGenCostPerUnit_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
 
-            objProcess.fHourNetGeneration_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+            objProcess.fHourlyNetOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
     
             objProcess.fGenerationCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
             objProcess.fFuelConsumption_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
@@ -116,8 +120,8 @@ def ZoneProcessVar_Init(objMarket, instance):
 
 
 
-def MarketTransCost_Init(objMarket, instance):
-    ''' initialize transmission cost paratemer '''
+def MarketTransmission_Init(objMarket, instance):
+    ''' initialize transmission paratemer and variables initiation '''
     
     for objTrans in objMarket.lsTransmission:
         PlantLife = objTrans.LifeTime
@@ -133,6 +137,13 @@ def MarketTransCost_Init(objMarket, instance):
         objTrans.fTransNewBuild_YS = np.zeros(len(instance.iAllYearSteps_YS))
         objTrans.fTransAccCapacity_YS = np.empty(len(instance.iAllYearSteps_YS))
         objTrans.fTransAccCapacity_YS.fill(fCapacity)
+
+
+    # initialize transmission
+    for objTrans in objMarket.lsTransmission:
+        objTrans.fTransLineInput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objTrans.fTransLineOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objTrans.iLineStatus_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
 
     return
 
@@ -231,7 +242,7 @@ def process_Init(objMarket, instance):
     
                 # sum up generation cost
                 objProcess.fVariableGenCost_TS_YS += fFuelCost_TS_YS + fEmissionCost_TS_YS
-                objProcess.fVariableGenCost_TS_YS = np.around(objProcess.fVariableGenCos_TS_YS, 4)
+                objProcess.fVariableGenCost_TS_YS = np.around(objProcess.fVariableGenCost_TS_YS, 4)
             
     return
 

@@ -15,6 +15,13 @@ class Market:
         self.lsTransmission = list()        # a list of zone objects in this market
         self.lsAllDispatchPlants = list()   # a list all dispatchable plants in the market (key information) index to zone.lsProcess
         self.MarketOutput = MarketOutput()
+        
+        ''' assumptions '''
+        # fRegulationRequire_YS
+        # f10mReserve_YS
+        # f30mReserve_YS
+        # fCO2EmissionLimit_YS        
+        
         return
 
 

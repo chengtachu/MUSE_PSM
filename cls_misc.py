@@ -17,6 +17,23 @@ class TimeSlice:
         self.iRepHoursInYear = kwargs["RepHoursInYear"]
         return
 
+class DayTimeSlice:
+    """ time slice class  """
+
+    def __init__(self, **kwargs):
+        self.MonthDay = kwargs["MonthDay"]
+        self.lsDiurnalTS = list()
+        return
+
+class DiurnalTimeSlice:
+    """ time slice class  """
+
+    def __init__(self, **kwargs):
+        self.iTimeSliceIndex = kwargs["iTimeSliceIndex"]
+        self.iRepHoursInYear = kwargs["iRepHoursInYear"]
+        self.iRepHoursInDay = kwargs["iRepHoursInDay"]
+        self.fValue = 0
+        return
 
 
 #------------ commodity -------------
@@ -47,7 +64,7 @@ class ProcessDef:
         return
 
 
-class RegionProcess(ProcessDef):
+class RegionProcessAssump(ProcessDef):
     """ regional process class assumption  """
 
     def __init__(self, ProcessName, dicParameters):
@@ -56,6 +73,22 @@ class RegionProcess(ProcessDef):
         for sParameter, value in dicParameters.items():
             setattr(self, sParameter, value)
         return
+
+
+class RegionDispatchProcess(ProcessDef):
+    """ regional dispatchable process class """
+
+    def __init__(self, **kwargs):
+        # basic technical assumption
+        self.indexZone = kwargs["indexZone"]
+        self.indexProcess = kwargs["indexProcess"]
+        self.sProcessName = kwargs["sProcessName"]
+        
+        ### simulation parameters
+        self.fVariableGenCost_TS = kwargs["fVariableGenCost_TS"]      # USD/kWh
+        self.fDAOfferPrice_TS = 0                   # USD/kW
+        return
+
 
 
 class ZoneProcess(ProcessDef):
@@ -68,9 +101,26 @@ class ZoneProcess(ProcessDef):
         self.sProcessID = ProcessID
         for sParameter, value in dicParameters.items():
             setattr(self, sParameter, value)
-            
+            ''' ---- assumptions ---- '''
+            # fDeratedCapacity      (MW)
+            # fAnnualCapex          (MillionUSD / year)
+            # fAnnualFixedCost      (MillionUSD / year)
+                    
+        ''' ---- variables ---- '''
         # fVariableGenCost_TS_YS
               
+        # fHourlyNetOutput_TS_YS
+        
+        # fGenerationCost_TS_YS
+        # fFuelConsumption_TS_YS
+        # fCarbonCost_TS_YS
+        # fGenerationCost_YS
+        # fAnnualFixedCostPerMW
+        # fAnnualInvestment_YR
+        
+        # fDAMarketVolumn_TS_YS
+        # fDAOfferPrice_TS_YS
+
         return
 
 
