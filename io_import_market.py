@@ -65,8 +65,11 @@ def get_ZoneTechAssump(objZone, iAllYearSteps_YS):
     dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
     for index, row in dfData.iterrows():
         
-        if row["DataCode"] == "PowerLossRatio" :
-            objZone.fPowerLossRatio_YS = io_import_util.DataAdjustWithTimePeriod(row,iAllYearSteps_YS)
+        if row["DataCode"] == "PowerDistLossRate" :
+            objZone.fPowerDistLossRate_YS = io_import_util.DataAdjustWithTimePeriod(row,iAllYearSteps_YS)
+            
+        elif row["DataCode"] == "HeatDistLossRate" :
+            objZone.fHeatDistLossRate_YS = io_import_util.DataAdjustWithTimePeriod(row,iAllYearSteps_YS)
 
     return
 

@@ -105,11 +105,13 @@ class ZoneProcess(ProcessDef):
             # fDeratedCapacity      (MW)
             # fAnnualCapex          (MillionUSD / year)
             # fAnnualFixedCost      (MillionUSD / year)
+            # fCHPPowerRatio    
                     
         ''' ---- variables ---- '''
         # fVariableGenCost_TS_YS
               
-        # fHourlyNetOutput_TS_YS
+        # fHourlyPowerOutput_TS_YS
+        # fHourlyHeatOutput_TS_YS
         
         # fGenerationCost_TS_YS
         # fFuelConsumption_TS_YS
@@ -121,6 +123,19 @@ class ZoneProcess(ProcessDef):
         # fDAMarketVolumn_TS_YS
         # fDAOfferPrice_TS_YS
 
+        return
+
+
+class ZoneCHPProcess(ProcessDef):
+    """ regional dispatchable process class """
+
+    def __init__(self, **kwargs):
+        # basic technical assumption
+        self.indexProcess = kwargs["indexProcess"]
+        self.sProcessName = kwargs["sProcessName"]
+        
+        ### simulation parameters
+        self.fVariableGenCost_TS = kwargs["fVariableGenCost_TS"]      # USD/kWh
         return
 
 

@@ -12,13 +12,15 @@ class Zone:
         self.lsProcess = list()             # a list of exist process in current modelling
         self.lsProcessFuture = list()       # a list of future process
         self.lsProcessDecomm = list()       # a list of decommited process
+        self.lsCHPProcessIndex = list()     # a list of index to dispatchable CHP process
         self.lsConnectPath = list()
         self.CountryOutput = CountryOutput()
         
         ''' assumptions '''
-        # fPowerLossRatio_YS            # %        
+        # fPowerDistLossRate_YS         # %
+        # fHeatDistLossRate_YS          # %          
         # fPowerDemand_TS_YS            # MW
-        # fHeatDemand_TS_YS             # GJ
+        # fHeatDemand_TS_YS             # GJ/h
         # fPowerImport_TS_YS            # MW
         
         # fMaxCapacity_YS               # MW
@@ -34,8 +36,9 @@ class Zone:
         
         ''' variables '''
         # fPowerOutput_TS_YS            # (MW) power output at the time-slice 
-        # fResDemand_TS_YS              # (MW) residulal demand at the time-slice        
-        
+        # fPowerResDemand_TS_YS         # (MW) residulal power demand at the time-slice    
+        # fHeatOutput_TS_YS             # (MW) power output at the time-slice
+        # fHeatResDemand_TS_YS          # (MW) residulal heat demand at the time-slice  
         
         return
 

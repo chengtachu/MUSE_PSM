@@ -10,10 +10,10 @@ class Market:
 
     def __init__(self, Market):
         self.sMarket = Market
-        self.lsZone = list()                # a list of zone objects in this market
-        self.lsGenCo = list()               # a list of generation companies in this market
-        self.lsTransmission = list()        # a list of zone objects in this market
-        self.lsAllDispatchPlants = list()   # a list all dispatchable plants in the market (key information) index to zone.lsProcess
+        self.lsZone = list()                    # a list of zone objects in this market
+        self.lsGenCo = list()                   # a list of generation companies in this market
+        self.lsTransmission = list()            # a list of zone objects in this market
+        self.lsAllDispatchProcessIndex = list() # a list all dispatchable plants in the market (key information) index to zone.lsProcess
         self.MarketOutput = MarketOutput()
         
         ''' assumptions '''
@@ -30,8 +30,11 @@ class Market:
         
         print("VI model run")
         
+        # model initiation (create variables)
+        model_util.model_fisrt_Init(self, instance)
+        
         # model initiation
-        model_util.model_Init(self, instance)
+        model_util.model_iter_Init(self, instance)
         
         # construct transmission
         iHopLimit = 2
