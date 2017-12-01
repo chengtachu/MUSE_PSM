@@ -15,7 +15,7 @@ def model_fisrt_Init(objMarket, instance):
     if instance.iForesightStartYear == instance.iBaseYear and objMarket.MarketOutput.dicGenCapacity_YR_TC == {} :
 
         # create zone variables
-        ZoneDemand_first_Init(objMarket, instance)
+        ZoneDemandVar_first_Init(objMarket, instance)
 
         # process variables initiation
         ZoneProcessVar_Init(objMarket, instance)
@@ -31,7 +31,7 @@ def model_fisrt_Init(objMarket, instance):
 
 
 
-def ZoneDemand_first_Init(objMarket, instance):
+def ZoneDemandVar_first_Init(objMarket, instance):
     ''' create zone variables '''
         
     for objZone in objMarket.lsZone:
@@ -41,6 +41,13 @@ def ZoneDemand_first_Init(objMarket, instance):
         objZone.fPowerResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
         objZone.fHeatOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
         objZone.fHeatResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        
+        objZone.fASRqrRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objZone.fASRqr10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objZone.fASRqr30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objZone.fASDfcRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objZone.fASDfc10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objZone.fASDfc30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
         
     return
 
@@ -57,6 +64,12 @@ def ZoneProcessVar_Init(objMarket, instance):
             objProcess.fHourlyPowerOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
             objProcess.fHourlyHeatOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
     
+            objProcess.iOperatoinStatus_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    
+            objProcess.fASRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+            objProcess.fAS10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+            objProcess.fAS30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    
             objProcess.fGenerationCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
             objProcess.fFuelConsumption_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
             objProcess.fCarbonCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
@@ -65,7 +78,7 @@ def ZoneProcessVar_Init(objMarket, instance):
             objProcess.fAnnualFixedCostPerMW = 0
             objProcess.fPriceMarkUp = 0
     
-            objProcess.fAnnualInvestment_YR = np.zeros(len(instance.iAllYearSteps_YS))
+            objProcess.fAnnualInvestment_YS = np.zeros(len(instance.iAllYearSteps_YS))
     
             objProcess.fDAMarketVolumn_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
             objProcess.fDAOfferPrice_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
@@ -107,9 +120,9 @@ def MarketAgent_Init(objMarket, instance):
     ''' initialize GenCo agents '''
     
     for objGenerator in objMarket.lsGenerator:
-        objGenerator.fAnnualProfit_YR = np.zeros(len(instance.iAllYearSteps_YS))
-        objGenerator.fAssetsValue_YR = np.zeros(len(instance.iAllYearSteps_YS))
-        objGenerator.fNewInvestment_YR = np.zeros(len(instance.iAllYearSteps_YS))
+        objGenerator.fAnnualProfit_YS = np.zeros(len(instance.iAllYearSteps_YS))
+        objGenerator.fAssetsValue_YS = np.zeros(len(instance.iAllYearSteps_YS))
+        objGenerator.fNewInvestment_YS = np.zeros(len(instance.iAllYearSteps_YS))
 
     return
 
@@ -127,6 +140,9 @@ def model_iter_Init(objMarket, instance):
     # move commit or decommit process, calculate derived cost, derated capacity
     ZoneExistProcess_Init(objMarket, instance)
         
+    # assign ancillary service in the market
+    ZoneAncillaryServiceReq_Init(objMarket, instance)
+    
     return
 
 
@@ -141,7 +157,7 @@ def ZoneDemand_iter_Init(objMarket, instance):
     
         # account for import/export 
         objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
-        objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] - objZone.fPowerImport_TS_YS[:,instance.iFSBaseYearIndex:]
+        objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] - objZone.fCrossMarketPowerImport_TS_YS[:,instance.iFSBaseYearIndex:]
 
         # account for heat distribution loss
         objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
@@ -197,6 +213,51 @@ def ZoneExistProcess_Init(objMarket, instance):
                 objProcess.fCHPPowerRatio = objProcess.EffPowerBP / (objProcess.EffPowerBP + objProcess.EffHeatBP)
                 
     return
+
+
+
+def ZoneAncillaryServiceReq_Init(objMarket, instance):
+    ''' assign ancillary service requirement in each zone of the market '''
+    
+    # objMarket.fRegulationRequire_YS
+    # objMarket.f10mReserve_YS
+    # objMarket.f30mReserve_YS
+
+    fMarketTotalDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    for objZone in objMarket.lsZone:
+        fMarketTotalDemand_TS_YS = fMarketTotalDemand_TS_YS + objZone.fPowerDemand_TS_YS
+
+    for indexYS in instance.iAllYearSteps_YS:
+    
+        # -------- regulatoin requirement --------
+        for objZone in objMarket.lsZone:
+        
+            lsDayTimeSlice = list(instance.lsDayTimeSlice)
+            for indexDay, objDay in enumerate(lsDayTimeSlice):
+                
+                # find the highest demand in the day
+                fDailyHighestDemand = 0
+                for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                    fZoneDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, indexYS]
+                    if fZoneDemand > fDailyHighestDemand:
+                        fDailyHighestDemand = fZoneDemand
+
+                # calculate the required regulation in the day
+                fRegulationRequire = 0  # MW
+                if fDailyHighestDemand > 0:
+                    fRegulationRequire = fDailyHighestDemand * objMarket.fRegulationRequire_YS[indexYS]
+                
+                for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                    objZone.fASRqrRegulation_TS_YS[objDayTS.iTimeSliceIndex,indexYS] = fRegulationRequire
+                    
+        # -------- 10 Minutes Reserve requirement --------
+
+
+        # fASRqr10MinReserve_TS_YS      # MW required reserve for 10 minutes
+        # fASRqr30MinReserve_TS_YS      # MW required reserve for 30 minutes
+
+    return
+
 
 
 

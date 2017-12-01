@@ -79,11 +79,9 @@ def updatePowerResidualDemand_Yearly(instance, objMarket, indexYS):
     ''' update power residual demand '''
 
     for indexZone, objZone in enumerate(objMarket.lsZone):
-        objZone.fPowerResDemand_TS_YS[:,indexYS] = objZone.fPowerDemand_TS_YS[:,indexYS] \
-        - objZone.fPowerOutput_TS_YS[:,indexYS] - objZone.fPowerImport_TS_YS[:,indexYS]
-        
+        objZone.fPowerResDemand_TS_YS[:,indexYS] = objZone.fPowerDemand_TS_YS[:,indexYS] - objZone.fPowerOutput_TS_YS[:,indexYS]
         objZone.fPowerResDemand_TS_YS[ objZone.fPowerResDemand_TS_YS[:,indexYS] < 0 ,indexYS] = 0
-
+        # power import/export from other market already account in ZoneDemand_iter_Init
     return
 
 

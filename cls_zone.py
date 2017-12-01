@@ -21,7 +21,7 @@ class Zone:
         # fHeatDistLossRate_YS          # %          
         # fPowerDemand_TS_YS            # MW
         # fHeatDemand_TS_YS             # GJ/h
-        # fPowerImport_TS_YS            # MW
+        # fCrossMarketPowerImport_TS_YS # MW
         
         # fMaxCapacity_YS               # MW
         # fMaxBuildRate_YS              # MW
@@ -39,6 +39,13 @@ class Zone:
         # fPowerResDemand_TS_YS         # (MW) residulal power demand at the time-slice    
         # fHeatOutput_TS_YS             # (MW) power output at the time-slice
         # fHeatResDemand_TS_YS          # (MW) residulal heat demand at the time-slice  
+        
+        # fASRqrRegulation_TS_YS        # MW required regulation ability
+        # fASRqr10MinReserve_TS_YS      # MW required reserve for 10 minutes
+        # fASRqr30MinReserve_TS_YS      # MW required reserve for 30 minutes
+        # fASDfcRegulation_TS_YS        # MW deficit regulation ability
+        # fASDfc10MinReserve_TS_YS      # MW deficit reserve for 10 minutes
+        # fASDfc30MinReserve_TS_YS      # MW deficit reserve for 30 minutes
         
         return
 

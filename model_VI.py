@@ -4,6 +4,7 @@ import numpy as np
 
 import cls_misc
 import model_util_gen
+import model_util_trans
 
 
 def dispatch_Main(objMarket, instance, indexYearStep):
@@ -28,16 +29,18 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     dispatch_HPS(instance, objMarket, indexYearStep)
 
     # check oversupply and dispatch to neighbors
+    dispatch_oversupply(instance, objMarket, indexYearStep)
     
+    # thermal generation unit commitment
+    unitCommitment_thermalUnit(instance, objMarket, indexYearStep)
     
     # dispatch main algorithm
-
+    dispatch_thermalUnit(instance, objMarket, indexYearStep)
 
     # initiate nodal price
 
 
-    # calculate nodal price objDesSubregion.aNodalPrice_TS_YR
-
+    # calculate nodal price objDesSubregion.aNodalPrice_TS_YS
 
 
     return
@@ -202,6 +205,62 @@ def dispatch_HPS(instance, objMarket, indexYS):
                 model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
  
     return
+
+
+
+def dispatch_oversupply(instance, objMarket, indexYS):
+    ''' check oversupply and export to neighbor zone  '''
+
+    for indexZone, objZone in enumerate(objMarket.lsZone):
+        for indexTS, objTS in enumerate(instance.lsTimeSlice):
+        
+            # export condistion test: 1.local power output > demand profile 2.find an export destination
+            bExportLoop = True
+            while bExportLoop:
+
+                fOversupplyBlock = model_util_trans.checkZonePowerBalance(objMarket, objZone, indexTS, indexYS)
+                if fOversupplyBlock > 0.001:    # need to use a small number because sometime it is non-zero without oversupply
+
+                    # find the path and node to export
+                    iPathIndex = model_util_trans.findExportPathIndex(objMarket, objZone, indexTS, indexYS)
+                
+                    if iPathIndex is -1:    # no path to export oversupply
+                        bExportLoop = False
+                    else:
+                        # calculate the max injection of the selected path
+                        fMaxInput = model_util_trans.calPathMaxInjection(objMarket, objZone, iPathIndex, fOversupplyBlock, indexTS, indexYS)
+                        if fMaxInput > 1:   # to aviod loop because of the output saved from line loss
+                            # dispatch the generation (the max injection may be lower because of reduced opposite direction transmit)
+                            model_util_trans.calPathExport(objMarket, objZone, iPathIndex, fMaxInput, indexTS, indexYS)
+                            # update the residual demand of the destination
+                            objDestZone = objMarket.lsZone[objZone.lsConnectPath[iPathIndex].iDestZoneIndex]
+                            model_util_trans.calResidualDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
+                        else:
+                            bExportLoop = False
+                else:   
+                    # no oversupply
+                    bExportLoop = False
+                 
+    return
+
+
+
+def unitCommitment_thermalUnit(instance, objMarket, indexYS):
+    ''' daily basis unit commitment for thermal unit '''
+
+
+    return
+
+
+
+def dispatch_thermalUnit(instance, objMarket, indexYS):
+    ''' unit commitment and dispatch of thermal units '''
+
+
+    return
+
+
+
 
 
 

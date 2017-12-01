@@ -99,6 +99,7 @@ class ZoneProcess(ProcessDef):
         self.sCompany = Company
         self.sProcessName = ProcessName
         self.sProcessID = ProcessID
+        self.iOperatoinStatus_TS_YS = None      # 0:shutsown  1:generating  2:commited
         for sParameter, value in dicParameters.items():
             setattr(self, sParameter, value)
             ''' ---- assumptions ---- '''
@@ -113,12 +114,16 @@ class ZoneProcess(ProcessDef):
         # fHourlyPowerOutput_TS_YS
         # fHourlyHeatOutput_TS_YS
         
+        # fASRegulation_TS_YS        # MW reserved capacity for regulation ability
+        # fAS10MinReserve_TS_YS      # MW reserved capacity for 10 minutes reserve
+        # fAS30MinReserve_TS_YS      # MW reserved capacity for 30 minutes reserve
+        
         # fGenerationCost_TS_YS
         # fFuelConsumption_TS_YS
         # fCarbonCost_TS_YS
         # fGenerationCost_YS
         # fAnnualFixedCostPerMW
-        # fAnnualInvestment_YR
+        # fAnnualInvestment_YS
         
         # fDAMarketVolumn_TS_YS
         # fDAOfferPrice_TS_YS

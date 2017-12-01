@@ -210,15 +210,15 @@ def update_ZonePowerHeatDemand(objZone, lsTimeSlice, iAllYearSteps_YS):
 
 
 def update_ZonePowerImport(objZone, lsTimeSlice, iAllYearSteps_YS):
-    ''' import process development limit in the zone '''
+    ''' import power import/export from other market(model) in the zone '''
 
     _sFolderPath = "Data/Input/"
     
     # update power import
-    sFilePath = _sFolderPath + "Zone_Import/" + objZone.sZone + ".xlsx"
+    sFilePath = _sFolderPath + "Zone_Trade/" + objZone.sZone + ".xlsx"
     sSheetName = "DemandProfile"
     dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
-    objZone.fPowerImport_TS_YS = io_import_util.GetDataAdjustWithTimePeriodAndSlice(dfData, iAllYearSteps_YS, lsTimeSlice)
+    objZone.fCrossMarketPowerImport_TS_YS = io_import_util.GetDataAdjustWithTimePeriodAndSlice(dfData, iAllYearSteps_YS, lsTimeSlice)
     
     return
 
