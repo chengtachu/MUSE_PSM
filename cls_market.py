@@ -42,16 +42,14 @@ class Market:
         
         # zone process initiation and calculate variable generation cost
         model_util.process_Init(self, instance)
-        
-        # calculate required ancillary service
-        
+                
         # base year dispatch
         model_VI.dispatch_Main(self, instance, instance.iFSBaseYearIndex)
         
-        # update ancillary service requirement
-        
-        
+
         # future investment
+        
+            # update ancillary service requirement
         
         
         # save modelling result

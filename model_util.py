@@ -219,17 +219,15 @@ def ZoneExistProcess_Init(objMarket, instance):
 def ZoneAncillaryServiceReq_Init(objMarket, instance):
     ''' assign ancillary service requirement in each zone of the market '''
     
-    # objMarket.fRegulationRequire_YS
-    # objMarket.f10mReserve_YS
-    # objMarket.f30mReserve_YS
-
     fMarketTotalDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
     for objZone in objMarket.lsZone:
         fMarketTotalDemand_TS_YS = fMarketTotalDemand_TS_YS + objZone.fPowerDemand_TS_YS
 
+    # ------------------------------------------------------
+    # -------- regulatoin requirement ----------------------
     for indexYS in instance.iAllYearSteps_YS:
     
-        # -------- regulatoin requirement --------
+        # assign the capacity based on peak demand in each zone
         for objZone in objMarket.lsZone:
         
             lsDayTimeSlice = list(instance.lsDayTimeSlice)
@@ -250,15 +248,99 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
                 for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
                     objZone.fASRqrRegulation_TS_YS[objDayTS.iTimeSliceIndex,indexYS] = fRegulationRequire
                     
-        # -------- 10 Minutes Reserve requirement --------
+    # --------------------------------------------------------    
+    # -------- 10 and 30 Minutes Reserve requirement --------
+    # assign the capacity based on the biggest plant peak in each zone in foresight base year
+
+    f10mReserve_TS = np.zeros(len(instance.lsTimeSlice))
+    f30mReserve_TS = np.zeros(len(instance.lsTimeSlice))
+    
+    # calculate daily required reserve capacity in the market
+    lsDayTimeSlice = list(instance.lsDayTimeSlice)
+    for indexDay, objDay in enumerate(lsDayTimeSlice):
+        
+        # find the highest demand in the day
+        fDailyHighestDemand = 0
+        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            fMarketDemand = fMarketTotalDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
+            if fMarketDemand > fDailyHighestDemand:
+                fDailyHighestDemand = fMarketDemand 
+                
+        # calculate daily required reserve capacity in the market
+        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            f10mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f10mReserve_YS[instance.iFSBaseYearIndex]
+            f30mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f30mReserve_YS[instance.iFSBaseYearIndex]
+
+    # get the biggest operating unit capacity of the zones
+    fBiggestUnitCapacity_ZN = np.zeros(len(objMarket.lsZone))
+    for indexZone, objZone in enumerate(objMarket.lsZone):
+        fBiggetUnitCapacity = -1    # negative number by default (if the zone has no plant or all renewables)
+        for objProcess in objZone.lsProcess:
+            if objProcess.sOperationMode == "Dispatch":
+                fUnitCapacity = int(objProcess.Capacity / objProcess.NoUnit)
+                if fUnitCapacity > fBiggetUnitCapacity:
+                    fBiggetUnitCapacity = fUnitCapacity
+        fBiggestUnitCapacity_ZN[indexZone] = fBiggetUnitCapacity
 
 
-        # fASRqr10MinReserve_TS_YS      # MW required reserve for 10 minutes
-        # fASRqr30MinReserve_TS_YS      # MW required reserve for 30 minutes
+    lsDayTimeSlice = list(instance.lsDayTimeSlice)
+    for indexDay, objDay in enumerate(lsDayTimeSlice):
 
+        # get peak demand of the zone in the day
+        fPeakDemand_ZN = np.zeros(len(objMarket.lsZone))
+        for indexZone, objZone in enumerate(objMarket.lsZone):
+            fPeakDemand = 0  # MW
+            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                if objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] > fPeakDemand:
+                    fPeakDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
+            fPeakDemand_ZN[indexZone] = fPeakDemand
+                    
+        # ----------- assignment 10 minutes reserve capacity -----------
+        fAssignedCapacity_ZN = np.zeros(len(objMarket.lsZone))
+        bReserveAssignment = True
+        while bReserveAssignment:
+            if f10mReserve_TS[objDay.lsDiurnalTS[0].iTimeSliceIndex] > 0.001:
+                # find the biggest reserve demand zone in terms of assigned capacity / peak demand
+                indexLowestReserveZone = 0
+                fLowestReserveRatio = 99999
+                for indexZone, objZone in enumerate(objMarket.lsZone):
+                    fZoneReserveRatio = fAssignedCapacity_ZN[indexZone] / fPeakDemand_ZN[indexZone]
+                    if fZoneReserveRatio < fLowestReserveRatio and fBiggestUnitCapacity_ZN[indexZone] > 0:
+                        fLowestReserveRatio = fZoneReserveRatio
+                        indexLowestReserveZone = indexZone
+                # assign reserve capacity to the region
+                for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                    fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                    f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                    objMarket.lsZone[indexLowestReserveZone].fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] = \
+                    fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+            else:
+                bReserveAssignment = False
+                # reserve capacity assignment is done
+          
+        # ----------- assignment 30 minutes reserve capacity -----------
+        fAssignedCapacity_ZN = np.zeros(len(objMarket.lsZone))
+        bReserveAssignment = True
+        while bReserveAssignment:
+            if f30mReserve_TS[objDay.lsDiurnalTS[0].iTimeSliceIndex] > 0.001:
+                # find the biggest reserve demand zone in terms of assigned capacity / peak demand
+                indexLowestReserveZone = 0
+                fLowestReserveRatio = 99999
+                for indexZone, objZone in enumerate(objMarket.lsZone):
+                    fZoneReserveRatio = fAssignedCapacity_ZN[indexZone] / fPeakDemand_ZN[indexZone]
+                    if fZoneReserveRatio < fLowestReserveRatio and fBiggestUnitCapacity_ZN[indexZone] > 0:
+                        fLowestReserveRatio = fZoneReserveRatio
+                        indexLowestReserveZone = indexZone
+                # assign reserve capacity to the region
+                for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                    fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                    f30mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                    objMarket.lsZone[indexLowestReserveZone].fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] = \
+                    fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+            else:
+                bReserveAssignment = False
+                # reserve capacity assignment is done
     return
-
-
 
 
 # ----------------------------------------------------------------------------------------------------------------------
