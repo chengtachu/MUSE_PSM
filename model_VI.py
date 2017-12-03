@@ -234,7 +234,7 @@ def dispatch_oversupply(instance, objMarket, indexYS):
                             model_util_trans.calPathExport(objMarket, objZone, iPathIndex, fMaxInput, indexTS, indexYS)
                             # update the residual demand of the destination
                             objDestZone = objMarket.lsZone[objZone.lsConnectPath[iPathIndex].iDestZoneIndex]
-                            model_util_trans.calResidualDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
+                            model_util_trans.updatePowerResDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
                         else:
                             bExportLoop = False
                 else:   
@@ -248,19 +248,71 @@ def dispatch_oversupply(instance, objMarket, indexYS):
 def unitCommitment_thermalUnit(instance, objMarket, indexYS):
     ''' daily basis unit commitment for thermal unit '''
 
+    # sum up the market residual demand
+    fMarketTotalResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    for objZone in objMarket.lsZone:
+        fMarketTotalResDemand_TS_YS += objZone.fPowerResDemand_TS_YS
+        
+    for indexDay, objDay in enumerate(instance.lsDayTimeSlice):
+    
+        # get the time-slice with highest residual demand
+        fDailyHighestDemand = 0
+        iHighestTSIndex = 0
+        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            fMarketDemand = fMarketTotalResDemand_TS_YS[objDayTS.iTimeSliceIndex, indexYS]
+            if fMarketDemand > fDailyHighestDemand:
+                fDailyHighestDemand = fMarketDemand
+                iHighestTSIndex = objDayTS.iTimeSliceIndex
+        
+        # add required ancillary service capacity to residual demand 
+        for objZone in objMarket.lsZone:
+            objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqrRegulation_TS_YS[iHighestTSIndex,indexYS]
+            objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr10MinReserve_TS_YS[iHighestTSIndex,indexYS]
+            objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr30MinReserve_TS_YS[iHighestTSIndex,indexYS]
+        
+        # dispatch the time-slice with hightst residual demand
+        dispatch_thermalUnit_TS(instance, objMarket, iHighestTSIndex, indexYS)
+    
+        # sort variable generation cost
+    
+        # dispatch with additional ancillary services capacity requirement 
+        
+        # arrange ancillary service from commited units
+        
+            # commit more units if there is unserved ancillary service
+        
+
+        # reset output
+        
+        # reset residual demand
+
 
     return
 
 
 
 def dispatch_thermalUnit(instance, objMarket, indexYS):
-    ''' unit commitment and dispatch of thermal units '''
+    ''' dispatch thermal units '''
 
+    # for each day
+
+        # sort variable generation cost
+
+        # dispatch with the commited units
 
     return
 
 
 
+def dispatch_thermalUnit_TS(instance, objMarket, indexTS, indexYS):
+    ''' dispatch thermal units for only given time slice '''
 
+
+
+
+
+
+
+    return
 
 

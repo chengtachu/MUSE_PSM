@@ -260,7 +260,7 @@ def calPathExport(objMarket, objZone, iPathIndex, fMaxInput, indexTS, indexYS):
 
 
 
-def calResidualDemandWithTrans(objMarket, objZone, indexTS, indexYS):
+def updatePowerResDemandWithTrans(objMarket, objZone, indexTS, indexYS):
     ''' calculate residual demand considering cross-zone import/export '''
     
     # all connection import

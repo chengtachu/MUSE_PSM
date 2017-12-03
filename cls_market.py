@@ -46,7 +46,6 @@ class Market:
         # base year dispatch
         model_VI.dispatch_Main(self, instance, instance.iFSBaseYearIndex)
         
-
         # future investment
         
             # update ancillary service requirement
