@@ -13,7 +13,7 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     # reset variables
     dispatch_Init(instance, objMarket, indexYearStep)
 
-    # copy key information to market process list objMarket.lsAllDispatchProcessIndex
+    # copy key information to market process list objMarket.lsDispatchProcessIndex
     stackMarketDispatchProcess(instance, objMarket, indexYearStep)
 
     # Non-dispatchable generation (all time-slice)
@@ -28,7 +28,7 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     # dispatch hydro-pump storage (HPS)
     dispatch_HPS(instance, objMarket, indexYearStep)
 
-    # check oversupply and dispatch to neighbors
+    # check oversupply from non-dispatchable and dispatch to neighbors
     dispatch_oversupply(instance, objMarket, indexYearStep)
     
     # thermal generation unit commitment
@@ -37,8 +37,9 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     # dispatch main algorithm
     dispatch_thermalUnit(instance, objMarket, indexYearStep)
 
-    # initiate nodal price
+    # curtailment
 
+    # initiate nodal price
 
     # calculate nodal price objDesSubregion.aNodalPrice_TS_YS
 
@@ -75,12 +76,12 @@ def stackMarketDispatchProcess(instance, objMarket, indexYS):
         for indexProcess, objProcess in enumerate(objZone.lsProcess):
             if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
                 if objProcess.sOperationMode == "Dispatch" and "CHP" not in objProcess.sProcessName:
-                    objMarket.lsAllDispatchProcessIndex.append(cls_misc.RegionDispatchProcess(  \
+                    objMarket.lsDispatchProcessIndex.append(cls_misc.RegionDispatchProcess(  \
                         indexZone=indexZone, indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
                         fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS]   \
                     ))
     
-        for objProcess in objMarket.lsAllDispatchProcessIndex:
+        for objProcess in objMarket.lsDispatchProcessIndex:
             objProcess.fDAOfferPrice_TS = np.zeros( len(instance.lsTimeSlice) )
         
         # heat process to stack on zone stack list
@@ -270,17 +271,26 @@ def unitCommitment_thermalUnit(instance, objMarket, indexYS):
             objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr10MinReserve_TS_YS[iHighestTSIndex,indexYS]
             objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr30MinReserve_TS_YS[iHighestTSIndex,indexYS]
         
-        # dispatch the time-slice with hightst residual demand
-        dispatch_thermalUnit_TS(instance, objMarket, iHighestTSIndex, indexYS)
-    
         # sort variable generation cost
+        objMarket.lsDispatchProcessIndex = sorted(objMarket.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
+                                                  lsDispatchProcessIndex.fVariableGenCost_TS[iHighestTSIndex])
+        
+        # dispatch the time-slice with hightst residual demand (this step make sure a lower bound of reliability requirement)
+        for objProcessIndex in objMarket.lsDispatchProcessIndex:
+            objDispatchZone = objMarket.lsZone[objProcessIndex.indexZone]
+            objDispatchProcess = objDispatchZone.lsProcess[objProcessIndex.indexProcess]
+            dispatch_thermalUnit_TS(instance, objMarket, objDispatchZone, objDispatchProcess, iHighestTSIndex, indexYS)
     
-        # dispatch with additional ancillary services capacity requirement 
+        # arrange ancillary service among commited units
+        #for objZone in objMarket.lsZone:
+            # arrange regulation capacity of the zone, and calculate deficit
+            # arrange 10 min reserve capacity of the zone, and calculate deficit
+            # arrange 30 min reserve capacity of the zone, and calculate deficit
         
-        # arrange ancillary service from commited units
-        
+        #for objZone in objMarket.lsZone:
             # commit more units if there is unserved ancillary service
         
+        #if cannot be served by local process, commit neighbour's process
 
         # reset output
         
@@ -304,15 +314,57 @@ def dispatch_thermalUnit(instance, objMarket, indexYS):
 
 
 
-def dispatch_thermalUnit_TS(instance, objMarket, indexTS, indexYS):
+def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, indexYS):
     ''' dispatch thermal units for only given time slice '''
 
+    fMustRunOutput = objProcess.fDeratedCapacity * (objProcess.MinLoadRate / 100)
+    fExportOutput = 0
 
+    if objZone.fPowerResDemand_TS_YS[indexTS, indexYS] > 0.001:
+        # commit this process
+        objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
+        if objProcess.fDeratedCapacity > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
+            # residual demand can be served
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
+            objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = 0
+            fExportOutput = objProcess.fDeratedCapacity - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS]
+        else:
+            # dispatch all output
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objProcess.fDeratedCapacity
+            objZone.fPowerResDemand_TS_YS[indexTS, indexYS] -= objProcess.fDeratedCapacity
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objProcess.fDeratedCapacity
+    else :
+        # no local residual demand, check export
+        fExportOutput = objProcess.fDeratedCapacity
 
+    # export the generation (local residual demand has to be 0 here)
+    while fExportOutput > 1:
+        # find the path and node to export (-1: no path to export)
+        iPathIndex = model_util_trans.findExportPathIndex(objMarket, objZone, indexTS, indexYS)
+        if iPathIndex is not -1:
+            # calculate the max injection of the selected path
+            fMaxInput = model_util_trans.calPathMaxInjection(objMarket, objZone, iPathIndex, fExportOutput, indexTS, indexYS)
+            # dispatch the generation (the max injection may be lower because of reduced opsite direction transmit)
+            model_util_trans.calPathExport(objMarket, objZone, iPathIndex, fMaxInput, indexTS, indexYS)
+            fExportOutput = fExportOutput - fMaxInput
 
+            # update local generation
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] += fMaxInput
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += fMaxInput
+                    
+            # update the residual demand
+            objDestZone = objMarket.lsZone[objZone.lsConnectPath[iPathIndex].iDestZoneIndex]
+            model_util_trans.calResidualDemandWithConn(objMarket, objDestZone, indexTS, indexYS)
 
-
-
+        else:
+            # all line is full, break the loop
+            fExportOutput = 0
+            # check must-run block (this might cause over generation), need to maintain at least must-run level
+            if objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] < fMustRunOutput:
+                objZone.fPowerOutput_TS_YS[indexTS,indexYS] += (fMustRunOutput - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS])
+                objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fMustRunOutput
+            
     return
 
 

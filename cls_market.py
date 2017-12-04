@@ -13,7 +13,7 @@ class Market:
         self.lsZone = list()                    # a list of zone objects in this market
         self.lsGenCo = list()                   # a list of generation companies in this market
         self.lsTransmission = list()            # a list of zone objects in this market
-        self.lsAllDispatchProcessIndex = list() # a list all dispatchable plants in the market (key information) index to zone.lsProcess
+        self.lsDispatchProcessIndex = list() # a list all dispatchable plants in the market (key information) index to zone.lsProcess
         self.MarketOutput = MarketOutput()
         
         ''' assumptions '''

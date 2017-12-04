@@ -49,7 +49,6 @@ class Commodity:
         return
 
 
-
 #------------ technology/process -------------
 class ProcessDef:
     """ basic process definition class  """
@@ -85,10 +84,9 @@ class RegionDispatchProcess(ProcessDef):
         self.sProcessName = kwargs["sProcessName"]
         
         ### simulation parameters
-        self.fVariableGenCost_TS = kwargs["fVariableGenCost_TS"]      # USD/kWh
-        self.fDAOfferPrice_TS = 0                   # USD/kW
+        self.fVariableGenCost_TS = kwargs["fVariableGenCost_TS"]    # USD/kWh
+        self.fDAOfferPrice_TS = 0                                   # USD/kW
         return
-
 
 
 class ZoneProcess(ProcessDef):
