@@ -74,7 +74,7 @@ class RegionProcessAssump(ProcessDef):
         return
 
 
-class RegionDispatchProcess(ProcessDef):
+class MarketDispatchProcess(ProcessDef):
     """ regional dispatchable process class """
 
     def __init__(self, **kwargs):
@@ -82,6 +82,7 @@ class RegionDispatchProcess(ProcessDef):
         self.indexZone = kwargs["indexZone"]
         self.indexProcess = kwargs["indexProcess"]
         self.sProcessName = kwargs["sProcessName"]
+        self.fRampRatePerM = kwargs["fRampRatePerM"]
         
         ### simulation parameters
         self.fVariableGenCost_TS = kwargs["fVariableGenCost_TS"]    # USD/kWh

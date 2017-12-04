@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
+import model_util_trans
 
 def calNonDispatchGeneration(instance, objZone, objProcess, indexYS):
     ''' calculate non-dispatchable process hourly generation '''
@@ -166,6 +166,78 @@ def calHPSOperation(instance, objZone, objProcess, indexYS):
     return
 
 
+# ----------------------------------------------------------------------------
+# ------- thermal unit generation --------------------------------------------
+# ----------------------------------------------------------------------------
+
+def dispatch_thermalUnit(instance, objMarket, indexYS):
+    ''' dispatch thermal units '''
+
+    # for each day
+
+        # sort variable generation cost
+
+        # dispatch with the commited units
+
+    return
+
+
+
+def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, indexYS):
+    ''' dispatch thermal units for only given time slice '''
+
+    fMustRunOutput = objProcess.fDeratedCapacity * (objProcess.MinLoadRate / 100)
+    fExportOutput = 0
+
+    if objZone.fPowerResDemand_TS_YS[indexTS, indexYS] > 0.001:
+        
+        # ------ commit this process --------------------------
+        objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 
+        # -----------------------------------------------------
+        
+        if objProcess.fDeratedCapacity > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
+            # residual demand can be served
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
+            objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = 0
+            fExportOutput = objProcess.fDeratedCapacity - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS]
+        else:
+            # dispatch all output
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objProcess.fDeratedCapacity
+            objZone.fPowerResDemand_TS_YS[indexTS, indexYS] -= objProcess.fDeratedCapacity
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objProcess.fDeratedCapacity
+    else :
+        # no local residual demand, check export
+        fExportOutput = objProcess.fDeratedCapacity
+
+    # export the generation (local residual demand has to be 0 here)
+    while fExportOutput > 1:
+        # find the path and node to export (-1: no path to export)
+        iPathIndex = model_util_trans.findExportPathIndex(objMarket, objZone, indexTS, indexYS)
+        if iPathIndex is not -1:
+            # calculate the max injection of the selected path
+            fMaxInput = model_util_trans.calPathMaxInjection(objMarket, objZone, iPathIndex, fExportOutput, indexTS, indexYS)
+            # dispatch the generation (the max injection may be lower because of reduced opsite direction transmit)
+            model_util_trans.calPathExport(objMarket, objZone, iPathIndex, fMaxInput, indexTS, indexYS)
+            fExportOutput = fExportOutput - fMaxInput
+
+            # update local generation
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] += fMaxInput
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += fMaxInput
+                    
+            # update the residual demand
+            objDestZone = objMarket.lsZone[objZone.lsConnectPath[iPathIndex].iDestZoneIndex]
+            model_util_trans.updatePowerResDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
+
+        else:
+            # all line is full, break the loop
+            fExportOutput = 0
+            # check must-run block (this might cause over generation), need to maintain at least must-run level
+            if objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] < fMustRunOutput:
+                objZone.fPowerOutput_TS_YS[indexTS,indexYS] += (fMustRunOutput - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS])
+                objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fMustRunOutput
+            
+    return
 
 
 
