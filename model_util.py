@@ -296,6 +296,15 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
         # ----------- assignment 10 minutes reserve capacity -----------
         fAssignedCapacity_ZN = np.zeros(len(objMarket.lsZone))
         fAssignedCapacity_ZN.fill(1)  # assign a non-zero value
+        
+        # minimal reserve requirement is half of the biggest unit in the zone
+        for indexZone, objZone in enumerate(objMarket.lsZone):
+            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                fAssignedCapacity_ZN[indexZone] += fBiggestUnitCapacity_ZN[indexZone] / 2
+                f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexZone] / 2
+                objZone.fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += fBiggestUnitCapacity_ZN[indexZone] / 2
+                    
+        # allocate the rest required reserve capacity
         bReserveAssignment = True
         while bReserveAssignment:
             if f10mReserve_TS[objDay.lsDiurnalTS[0].iTimeSliceIndex] > 0.001:
@@ -319,6 +328,15 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
           
         # ----------- assignment 30 minutes reserve capacity -----------
         fAssignedCapacity_ZN.fill(1)  # reset and assign a non-zero value
+        
+        # minimal reserve requirement is the biggest unit in the zone
+        for indexZone, objZone in enumerate(objMarket.lsZone):
+            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                fAssignedCapacity_ZN[indexZone] += fBiggestUnitCapacity_ZN[indexZone]
+                f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexZone]
+                objZone.fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += fBiggestUnitCapacity_ZN[indexZone]
+                
+        # allocate the rest required reserve capacity
         bReserveAssignment = True
         while bReserveAssignment:
             if f30mReserve_TS[objDay.lsDiurnalTS[0].iTimeSliceIndex] > 0.001:
@@ -365,6 +383,8 @@ def process_Init(objMarket, instance):
                 objZone.lsProcess.append(copy.copy(objProcess))
                 objZone.lsProcessFuture.remove(objProcess)
            
+        # existing process to be built in the near future still in the lsProcess
+            
             
     # calculate variable generation cost
     for objZone in objMarket.lsZone:

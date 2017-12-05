@@ -105,12 +105,16 @@ def dispatch_nondispatchable(instance, objMarket, indexYS):
 
         sYearStep = instance.iAllYearSteps_YS[indexYS]
         for indexProcess, objProcess in enumerate(objZone.lsProcess):
-            if objProcess.sOperationMode == "NonDispatch" and objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+            if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+                if objProcess.sOperationMode == "NonDispatch":
+                        
+                    model_util_gen.calNonDispatchGeneration(instance, objZone, objProcess, indexYS)
+        
+                    # add up non-dispatchable generation (MW)
+                    objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
                     
-                model_util_gen.calNonDispatchGeneration(instance, objZone, objProcess, indexYS)
-    
-                # add up non-dispatchable generation (MW)
-                objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
+                    # update operation status
+                    objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1 # generating
     
     # update power residual demand
     model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
@@ -126,12 +130,16 @@ def dispatch_limiteddispatchable(instance, objMarket, indexYS):
 
         sYearStep = instance.iAllYearSteps_YS[indexYS]
         for indexProcess, objProcess in enumerate(objZone.lsProcess):
-            if objProcess.sOperationMode == "LimitDispatch" and objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+            if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+                if objProcess.sOperationMode == "LimitDispatch":
+                        
+                    model_util_gen.calLimitedDispatchGeneration(instance, objZone, objProcess, indexYS)
+        
+                    # add up non-dispatchable generation (MW)
+                    objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
                     
-                model_util_gen.calLimitedDispatchGeneration(instance, objZone, objProcess, indexYS)
-    
-                # add up non-dispatchable generation (MW)
-                objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
+                    # update operation status
+                    objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1 # generating
     
     # update power residual demand
     model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
@@ -169,9 +177,11 @@ def dispatch_CHP(instance, objMarket, indexYS):
                     objZone.fHeatResDemand_TS_YS[indexTS,indexYS] = objZone.fHeatDemand_TS_YS[indexTS,indexYS] - objZone.fHeatOutput_TS_YS[indexTS,indexYS]
                     # power output
                     objCHP.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fPowerOutput
-                    objZone.fPowerOutput_TS_YS[indexTS,indexYS] = objZone.fPowerOutput_TS_YS[indexTS,indexYS] + objCHP.fHourlyPowerOutput_TS_YS[indexTS,indexYS]
+                    objZone.fPowerOutput_TS_YS[indexTS,indexYS] = objZone.fPowerOutput_TS_YS[indexTS,indexYS] + objCHP.fHourlyPowerOutput_TS_YS[indexTS,indexYS]                   
+                    # update operation status
+                    objCHP.iOperatoinStatus_TS_YS[indexTS, indexYS] = 1  # generating
 
-                elif fHeatResDemand > 0:
+                elif fHeatResDemand > 0.001:
                     # heat output
                     objCHP.fHourlyHeatOutput_TS_YS[indexTS,indexYS] = fHeatResDemand
                     objZone.fHeatOutput_TS_YS[indexTS,indexYS] = objZone.fHeatOutput_TS_YS[indexTS,indexYS] + objCHP.fHourlyHeatOutput_TS_YS[indexTS,indexYS]
@@ -179,8 +189,12 @@ def dispatch_CHP(instance, objMarket, indexYS):
                     # power output
                     objCHP.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fHeatResDemand * (fPowerOutput/fHeatOutput)
                     objZone.fPowerOutput_TS_YS[indexTS,indexYS] = objZone.fPowerOutput_TS_YS[indexTS,indexYS] + objCHP.fHourlyPowerOutput_TS_YS[indexTS,indexYS]
-
-                    break
+                    # update operation status
+                    objCHP.iOperatoinStatus_TS_YS[indexTS, indexYS] = 1 # generating
+                    
+                else:
+                    # update operation status
+                    objCHP.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 # commited
                 
     # update power residual demand
     model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
@@ -196,16 +210,20 @@ def dispatch_HPS(instance, objMarket, indexYS):
 
         sYearStep = instance.iAllYearSteps_YS[indexYS]
         for indexProcess, objProcess in enumerate(objZone.lsProcess):
-            if objProcess.sOperationMode == "Storage" and objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-                    
-                model_util_gen.calHPSOperation(instance, objZone, objProcess, indexYS)
-    
-                # add up non-dispatchable generation (MW)
-                objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
-    
-                # update power residual demand
-                model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
+            if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+                if objProcess.sOperationMode == "Storage":
+                        
+                    model_util_gen.calHPSOperation(instance, objZone, objProcess, indexYS)
+        
+                    # add up non-dispatchable generation (MW)
+                    objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
+        
+                    # update power residual demand
+                    model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
  
+                    # update operation status
+                    objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1  # generating
+    
     return
 
 
