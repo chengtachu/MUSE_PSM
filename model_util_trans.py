@@ -286,4 +286,29 @@ def updatePowerResDemandWithTrans(objMarket, objZone, indexTS, indexYS):
 
 
 
+def checkPowerOverGeneration(objMarket, objZone, indexTS, indexYS):
+    ''' return the volume of of overgeneration in a zone '''
+    
+    # all connection import
+    fConnImport = 0
+    for index, objConnLine in enumerate(objMarket.lsTransmission): 
+        if objConnLine.To == objZone.sZone:
+            fConnImport += objConnLine.fTransLineOutput_TS_YS[indexTS, indexYS]
+
+    # all connection export
+    fConnExport = 0
+    for index, objConnLine in enumerate(objMarket.lsTransmission): 
+        if objConnLine.From == objZone.sZone:
+            fConnExport += objConnLine.fTransLineInput_TS_YS[indexTS, indexYS]
+
+    fResidualDemand = objZone.fPowerDemand_TS_YS[indexTS, indexYS] - objZone.fPowerOutput_TS_YS[indexTS, indexYS] - fConnImport + fConnExport
+
+    fOverGeneration = 0
+    if fResidualDemand < 0:
+        fOverGeneration = -fResidualDemand
+
+    return fOverGeneration
+
+
+
 

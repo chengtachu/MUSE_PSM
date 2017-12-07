@@ -13,7 +13,7 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     ''' the main function of dispatch '''
         
     # reset variables
-    dispatch_Init(instance, objMarket, indexYearStep)
+    dispatch_Init(objMarket, indexYearStep)
 
     # copy key information to market process list objMarket.lsDispatchProcessIndex
     objMarket.lsDispatchProcessIndex = list()
@@ -35,7 +35,7 @@ def dispatch_Main(objMarket, instance, indexYearStep):
 
     # check oversupply from non-dispatchable and dispatch to neighbors
     dispatch_oversupply(instance, objMarket, indexYearStep)
-    
+        
     # thermal generation unit commitment
     model_util_unitcom.unitCommitment(instance, objMarket, indexYearStep, "ExecMode")
     
@@ -52,11 +52,11 @@ def dispatch_Main(objMarket, instance, indexYearStep):
 
 
 
-def dispatch_Plan(objMarket, instance, indexYearStep):
+def dispatch_Plan(instance, objMarket, indexYearStep):
     ''' the main function of dispatch for planning '''
         
     # reset variables
-    dispatch_Init(instance, objMarket, indexYearStep)
+    dispatch_Init(objMarket, indexYearStep)
     
     # copy key information to market process list objMarket.lsDispatchProcessIndex
     objMarket.lsDispatchProcessIndex = list()
@@ -95,7 +95,7 @@ def dispatch_Plan(objMarket, instance, indexYearStep):
 
 
 
-def dispatch_Init(instance, objMarket, indexYearStep):
+def dispatch_Init(objMarket, indexYearStep):
     ''' reset variables  '''
     # transmission
     for objTrans in objMarket.lsTransmission:

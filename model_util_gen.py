@@ -178,10 +178,11 @@ def dispatch_thermalUnit(instance, objMarket, indexYS, sMode):
         objMarket.lsDispatchProcessIndex = sorted(objMarket.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
                                                   lsDispatchProcessIndex.fVariableGenCost_TS[objDay.lsDiurnalTS[0].iTimeSliceIndex])
         
-        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
-
+        for objDayTS in objDay.lsDiurnalTS:
+            indexTS = objDayTS.iTimeSliceIndex
+            
             # get the dispatch process            
-            for indexProcess, objProcessIndex in enumerate(objMarket.lsDispatchProcessIndex):
+            for objProcessIndex in objMarket.lsDispatchProcessIndex:
                 objZone = objMarket.lsZone[objProcessIndex.indexZone]
                 
                 if sMode == "ExecMode":
@@ -196,7 +197,39 @@ def dispatch_thermalUnit(instance, objMarket, indexYS, sMode):
                     
                     # dispatch the process
                     dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, indexYS)
+                       
+            # adjust generatoin (oversupply from base-load block)
+            for objZone in objMarket.lsZone:
+                fOverGeneration = model_util_trans.checkPowerOverGeneration(objMarket, objZone, indexTS, indexYS)
+                if fOverGeneration > 0:
 
+                    for objProcessIndex in reversed(objMarket.lsDispatchProcessIndex):
+                        objZoneP = objMarket.lsZone[objProcessIndex.indexZone]
+                    
+                        if objZoneP.sZone == objZone.sZone and fOverGeneration > 0:
+
+                            if sMode == "ExecMode":
+                                lsProcess = objZone.lsProcess
+                            elif sMode == "PlanMode":
+                                lsProcess = objZone.lsProcessOperTemp
+                            
+                            objProcess = lsProcess[objProcessIndex.indexProcess]
+                            fMustRunOutput = objProcess.fDeratedCapacity * (objProcess.MinLoadRate / 100)
+                        
+                            if objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] > fMustRunOutput:
+                    
+                                if fOverGeneration > objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] - fMustRunOutput:
+                                    fReducedGeneratoin = objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] - fMustRunOutput
+                                    objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fMustRunOutput
+                                    objZone.fPowerOutput_TS_YS[indexTS,indexYS] -= fReducedGeneratoin
+                                    fOverGeneration -= fReducedGeneratoin
+                                else:
+                                    objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] -= fOverGeneration
+                                    objZone.fPowerOutput_TS_YS[indexTS,indexYS] -= fOverGeneration
+                                    fOverGeneration = 0
+                                    
+                                model_util_trans.updatePowerResDemandWithTrans(objMarket, objZone, indexTS, indexYS)
+ 
     return
 
 
@@ -213,17 +246,24 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
         objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 
         # -----------------------------------------------------
         
-        if objProcess.fDeratedCapacity > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
-            # residual demand can be served
+        if fMustRunOutput > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
+            # residual demand can be served within minimal load range
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fMustRunOutput
+            fExportOutput = fMustRunOutput - objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += fMustRunOutput
+            objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = 0
+        elif objProcess.fDeratedCapacity > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
+            # residual demand is within dispatchable range
             objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
             objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
             objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = 0
             fExportOutput = objProcess.fDeratedCapacity - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS]
         else:
-            # dispatch all output
+            # dispatch all output for local demand
             objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objProcess.fDeratedCapacity
             objZone.fPowerResDemand_TS_YS[indexTS, indexYS] -= objProcess.fDeratedCapacity
             objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objProcess.fDeratedCapacity
+            
     else :
         # no local residual demand, check export
         fExportOutput = objProcess.fDeratedCapacity
@@ -233,6 +273,11 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
         # find the path and node to export (-1: no path to export)
         iPathIndex = model_util_trans.findExportPathIndex(objMarket, objZone, indexTS, indexYS)
         if iPathIndex is not -1:
+            
+            # ------ commit this process --------------------------
+            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 
+            # -----------------------------------------------------
+            
             # calculate the max injection of the selected path
             fMaxInput = model_util_trans.calPathMaxInjection(objMarket, objZone, iPathIndex, fExportOutput, indexTS, indexYS)
             # dispatch the generation (the max injection may be lower because of reduced opsite direction transmit)
@@ -242,7 +287,7 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
             # update local generation
             objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] += fMaxInput
             objZone.fPowerOutput_TS_YS[indexTS,indexYS] += fMaxInput
-                    
+            
             # update the residual demand
             objDestZone = objMarket.lsZone[objZone.lsConnectPath[iPathIndex].iDestZoneIndex]
             model_util_trans.updatePowerResDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
@@ -250,14 +295,8 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
         else:
             # all line is full, break the loop
             fExportOutput = 0
-            # check must-run block (this might cause over generation), need to maintain at least must-run level
-            if objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] < fMustRunOutput:
-                objZone.fPowerOutput_TS_YS[indexTS,indexYS] += (fMustRunOutput - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS])
-                objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fMustRunOutput
-            
+
     return
-
-
 
 
 

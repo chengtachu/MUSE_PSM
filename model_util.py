@@ -613,11 +613,11 @@ def getOperationalProcessList(lsProcess, lsProcessPlanned, iYearStep):
 
     for indexP, objPlant in enumerate(lsProcess):
         if objPlant.DeCommitTime > iYearStep and objPlant.CommitTime <= iYearStep:
-            listOperationalPlants.append(copy.copy(objPlant))
+            listOperationalPlants.append(copy.deepcopy(objPlant))
 
     for indexP, objPlant in enumerate(lsProcessPlanned):
         if objPlant.DeCommitTime > iYearStep and objPlant.CommitTime <= iYearStep:
-            listOperationalPlants.append(copy.copy(objPlant))
+            listOperationalPlants.append(copy.deepcopy(objPlant))
 
     return listOperationalPlants
 
