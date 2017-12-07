@@ -5,7 +5,7 @@ import numpy as np
 
 import model_util_gen
 
-def unitCommitment(instance, objMarket, indexYS):
+def unitCommitment(instance, objMarket, indexYS, sMode):
     ''' daily basis unit commitment for thermal unit '''
 
     objMarketDup = copy.deepcopy(objMarket)
@@ -39,12 +39,24 @@ def unitCommitment(instance, objMarket, indexYS):
         # dispatch the time-slice with hightst residual demand (this step make sure a lower bound of reliability requirement)
         for objProcessIndex in objMarketDup.lsDispatchProcessIndex:
             objDispatchZone = objMarketDup.lsZone[objProcessIndex.indexZone]
-            objDispatchProcess = objDispatchZone.lsProcess[objProcessIndex.indexProcess]
+            
+            if sMode == "ExecMode":
+                lsProcess = objDispatchZone.lsProcess
+            elif sMode == "PlanMode":  
+                lsProcess = objDispatchZone.lsProcessOperTemp
+                
+            objDispatchProcess = lsProcess[objProcessIndex.indexProcess]
             model_util_gen.dispatch_thermalUnit_TS(instance, objMarketDup, objDispatchZone, objDispatchProcess, iHighestTSIndex, indexYS)
     
         # allocate ancillary service among commited units (spinning reserve - limited ramp range)
         for objZone in objMarketDup.lsZone:
-            lsProcessDup = copy.deepcopy(objZone.lsProcess)
+            
+            if sMode == "ExecMode":
+                lsProcess = objZone.lsProcess
+            elif sMode == "PlanMode":  
+                lsProcess = objZone.lsProcessOperTemp
+            
+            lsProcessDup = copy.deepcopy(lsProcess)
             # sort the zone process by ramp up ability
             lsProcessDup = sorted(lsProcessDup, key=lambda lsProcessDup: lsProcessDup.RampRatePerM, reverse=True)
             
@@ -58,7 +70,12 @@ def unitCommitment(instance, objMarket, indexYS):
         # commit more units if there is unserved ancillary service (non-spinning reserve)
         for objZone in objMarketDup.lsZone:
             
-            lsProcessDup = copy.deepcopy(objZone.lsProcess)
+            if sMode == "ExecMode":
+                lsProcess = objZone.lsProcess
+            elif sMode == "PlanMode":  
+                lsProcess = objZone.lsProcessOperTemp
+                
+            lsProcessDup = copy.deepcopy(lsProcess)
             # sort the zone process by ramp up ability
             lsProcessDup = sorted(lsProcessDup, key=lambda lsProcessDup: lsProcessDup.RampRatePerM, reverse=True)   
             
@@ -74,23 +91,38 @@ def unitCommitment(instance, objMarket, indexYS):
 
             # update process operation mode to original process list
             for objProcessDup in lsProcessDup:
-                for objProcess in objZone.lsProcess:
+                
+                if sMode == "ExecMode":
+                    lsProcess = objZone.lsProcess
+                elif sMode == "PlanMode":  
+                    lsProcess = objZone.lsProcessOperTemp
+                
+                for objProcess in lsProcess:
                     if objProcessDup.sProcessID == objProcess.sProcessID:
                         objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] = objProcessDup.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS]
                         break
 
         # if cannot be served by local process, commit neighbour's process
         
-
         # assign commit setting in the origional market object
         for indexZone, objZone in enumerate(objMarketDup.lsZone):
-            for indexProcess, objProcess in enumerate(objZone.lsProcess):
-                iOperatoinStatus = objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS]
-                
-                objProcessOrigin = objMarket.lsZone[indexZone].lsProcess[indexProcess]
-                for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
-                    objProcessOrigin.iOperatoinStatus_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iOperatoinStatus
+            
+            if sMode == "ExecMode":
+                for indexProcess, objProcess in enumerate(objZone.lsProcess):
+                    iOperatoinStatus = objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS]
                     
+                    objProcessOrigin = objMarket.lsZone[indexZone].lsProcess[indexProcess]
+                    for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                        objProcessOrigin.iOperatoinStatus_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iOperatoinStatus
+                
+            elif sMode == "PlanMode":  
+                for indexProcess, objProcess in enumerate(objZone.lsProcessOperTemp):
+                    iOperatoinStatus = objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS]
+                    
+                    objProcessOrigin = objMarket.lsZone[indexZone].lsProcessOperTemp[indexProcess]
+                    for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                        objProcessOrigin.iOperatoinStatus_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iOperatoinStatus              
+                                    
     return
 
 

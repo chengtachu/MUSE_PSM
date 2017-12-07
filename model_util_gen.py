@@ -169,7 +169,7 @@ def calHPSOperation(instance, objZone, objProcess, indexYS):
 # ------- thermal unit generation --------------------------------------------
 # ----------------------------------------------------------------------------
 
-def dispatch_thermalUnit(instance, objMarket, indexYS):
+def dispatch_thermalUnit(instance, objMarket, indexYS, sMode):
     ''' dispatch thermal units '''
 
     for indexDay, objDay in enumerate(instance.lsDayTimeSlice):
@@ -183,7 +183,13 @@ def dispatch_thermalUnit(instance, objMarket, indexYS):
             # get the dispatch process            
             for indexProcess, objProcessIndex in enumerate(objMarket.lsDispatchProcessIndex):
                 objZone = objMarket.lsZone[objProcessIndex.indexZone]
-                objProcess = objZone.lsProcess[objProcessIndex.indexProcess]
+                
+                if sMode == "ExecMode":
+                    lsProcess = objZone.lsProcess
+                elif sMode == "PlanMode":
+                    lsProcess = objZone.lsProcessOperTemp
+                
+                objProcess = lsProcess[objProcessIndex.indexProcess]
                 
                 # the process has to be commited
                 if objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] in [1,2]: 

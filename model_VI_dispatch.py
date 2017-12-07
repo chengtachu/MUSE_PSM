@@ -22,26 +22,25 @@ def dispatch_Main(objMarket, instance, indexYearStep):
         stackMarketDispatchProcess(instance, objMarket, indexZone, objZone.lsProcess, indexYearStep)
 
     # Non-dispatchable generation (all time-slice)
-    for objZone in objMarket.lsZone:
-        dispatch_nondispatchable(instance, objMarket, indexYearStep)    
-    
+    dispatch_nondispatchable(instance, objMarket, indexYearStep, "ExecMode")    
+
     # limited dispatchable generation
-    dispatch_limiteddispatchable(instance, objMarket, indexYearStep)  
+    dispatch_limiteddispatchable(instance, objMarket, indexYearStep, "ExecMode")  
 
     # dispatch CHP
-    dispatch_CHP(instance, objMarket, indexYearStep)
-    
+    dispatch_CHP(instance, objMarket, indexYearStep, "ExecMode")
+
     # dispatch hydro-pump storage (HPS)
-    dispatch_HPS(instance, objMarket, indexYearStep)
+    dispatch_HPS(instance, objMarket, indexYearStep, "ExecMode")
 
     # check oversupply from non-dispatchable and dispatch to neighbors
     dispatch_oversupply(instance, objMarket, indexYearStep)
     
     # thermal generation unit commitment
-    model_util_unitcom.unitCommitment(instance, objMarket, indexYearStep)
+    model_util_unitcom.unitCommitment(instance, objMarket, indexYearStep, "ExecMode")
     
     # dispatch main algorithm
-    model_util_gen.dispatch_thermalUnit(instance, objMarket, indexYearStep)
+    model_util_gen.dispatch_thermalUnit(instance, objMarket, indexYearStep, "ExecMode")
 
     # initiate nodal price
     model_util.nodeprice_Init(instance, objMarket, indexYearStep, "ExecMode")
@@ -65,9 +64,34 @@ def dispatch_Plan(objMarket, instance, indexYearStep):
         objZone.lsCHPProcessIndex = list()
         stackMarketDispatchProcess(instance, objMarket, indexZone, objZone.lsProcessOperTemp, indexYearStep)
     
+    # Non-dispatchable generation (all time-slice)
+    dispatch_nondispatchable(instance, objMarket, indexYearStep, "PlanMode")    
+
+    # limited dispatchable generation
+    dispatch_limiteddispatchable(instance, objMarket, indexYearStep, "PlanMode")  
+
+    # dispatch CHP
+    dispatch_CHP(instance, objMarket, indexYearStep, "PlanMode")
+
+    # dispatch hydro-pump storage (HPS)
+    dispatch_HPS(instance, objMarket, indexYearStep, "PlanMode")
+
+    # check oversupply from non-dispatchable and dispatch to neighbors
+    dispatch_oversupply(instance, objMarket, indexYearStep)
+
+    # thermal generation unit commitment
+    model_util_unitcom.unitCommitment(instance, objMarket, indexYearStep, "PlanMode")
+    
+    # dispatch main algorithm
+    model_util_gen.dispatch_thermalUnit(instance, objMarket, indexYearStep, "PlanMode")
+
+    # initiate nodal price
+    model_util.nodeprice_Init(instance, objMarket, indexYearStep, "PlanMode")
+
+    # calculate nodal price objDesSubregion.aNodalPrice_TS_YS
+    model_util.calNodalPrice(instance, objMarket, indexYearStep)
 
     return
-
 
 
 
@@ -85,6 +109,10 @@ def dispatch_Init(instance, objMarket, indexYearStep):
         objZone.fPowerResDemand_TS_YS[:,indexYearStep] = 0
         objZone.fHeatOutput_TS_YS[:,indexYearStep] = 0
         objZone.fHeatResDemand_TS_YS[:,indexYearStep] = 0
+
+        objZone.fASDfcRegulation_TS_YS[:,indexYearStep] = 0
+        objZone.fASDfc10MinReserve_TS_YS[:,indexYearStep] = 0
+        objZone.fASDfc30MinReserve_TS_YS[:,indexYearStep] = 0
 
     return
 
@@ -118,13 +146,18 @@ def stackMarketDispatchProcess(instance, objMarket, indexZone, lsProcess, indexY
 
 
 
-def dispatch_nondispatchable(instance, objMarket, indexYS):
+def dispatch_nondispatchable(instance, objMarket, indexYS, sMode):
     ''' calculate non-dispatchable generation  '''
 
     for indexZone, objZone in enumerate(objMarket.lsZone):
 
+        if sMode == "ExecMode":
+            lsProcess = objZone.lsProcess
+        elif sMode == "PlanMode":
+            lsProcess = objZone.lsProcessOperTemp
+            
         sYearStep = instance.iAllYearSteps_YS[indexYS]
-        for indexProcess, objProcess in enumerate(objZone.lsProcess):
+        for indexProcess, objProcess in enumerate(lsProcess):
             if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
                 if objProcess.sOperationMode == "NonDispatch":
                         
@@ -143,13 +176,18 @@ def dispatch_nondispatchable(instance, objMarket, indexYS):
 
 
 
-def dispatch_limiteddispatchable(instance, objMarket, indexYS):
+def dispatch_limiteddispatchable(instance, objMarket, indexYS, sMode):
     ''' calculate non-dispatchable generation  '''
 
     for indexZone, objZone in enumerate(objMarket.lsZone):
 
+        if sMode == "ExecMode":
+            lsProcess = objZone.lsProcess
+        elif sMode == "PlanMode":
+            lsProcess = objZone.lsProcessOperTemp
+        
         sYearStep = instance.iAllYearSteps_YS[indexYS]
-        for indexProcess, objProcess in enumerate(objZone.lsProcess):
+        for indexProcess, objProcess in enumerate(lsProcess):
             if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
                 if objProcess.sOperationMode == "LimitDispatch":
                         
@@ -168,7 +206,7 @@ def dispatch_limiteddispatchable(instance, objMarket, indexYS):
 
 
 
-def dispatch_CHP(instance, objMarket, indexYS):
+def dispatch_CHP(instance, objMarket, indexYS, sMode):
     ''' dispatch CHP generation  '''
 
     # update heat residual demand
@@ -177,13 +215,18 @@ def dispatch_CHP(instance, objMarket, indexYS):
             
     # dispatch heat and power generation
     for indexZone, objZone in enumerate(objMarket.lsZone):
-        for indexTS, objTS in enumerate(instance.lsTimeSlice):
-            
+
+        if sMode == "ExecMode":
+            lsProcess = objZone.lsProcess
+        elif sMode == "PlanMode":
+            lsProcess = objZone.lsProcessOperTemp
+        
+        for indexTS, objTS in enumerate(instance.lsTimeSlice):    
             # sort zone CHP list by cost
             objZone.lsCHPProcessIndex = sorted(objZone.lsCHPProcessIndex, key=lambda lsCHPProcessIndex: lsCHPProcessIndex.fVariableGenCost_TS[indexTS])
 
             for indProcess, objProcess in enumerate(objZone.lsCHPProcessIndex):
-                objCHP = objZone.lsProcess[objProcess.indexProcess]
+                objCHP = lsProcess[objProcess.indexProcess]
                 fHeatOutput = objCHP.fDeratedCapacity * (1-objCHP.fCHPPowerRatio)
                 fPowerOutput = objCHP.fDeratedCapacity * objCHP.fCHPPowerRatio
                 
@@ -223,13 +266,18 @@ def dispatch_CHP(instance, objMarket, indexYS):
 
 
 
-def dispatch_HPS(instance, objMarket, indexYS):
+def dispatch_HPS(instance, objMarket, indexYS, sMode):
     ''' dispatch hydro-pump storage (HPS)  '''
 
     for indexZone, objZone in enumerate(objMarket.lsZone):
 
+        if sMode == "ExecMode":
+            lsProcess = objZone.lsProcess
+        elif sMode == "PlanMode":
+            lsProcess = objZone.lsProcessOperTemp
+            
         sYearStep = instance.iAllYearSteps_YS[indexYS]
-        for indexProcess, objProcess in enumerate(objZone.lsProcess):
+        for indexProcess, objProcess in enumerate(lsProcess):
             if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
                 if objProcess.sOperationMode == "Storage":
                         

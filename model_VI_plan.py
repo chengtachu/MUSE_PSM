@@ -16,6 +16,8 @@ def calInvestmentPlanning(objMarket, instance):
         if iYearStep > instance.iForesightStartYear:
             indexYear = indexYS + instance.iFSBaseYearIndex
     
+            # update ancillary service requirement
+    
             #-----------------------------------------------------
             # creat candidate new technology plant list
             for objZone in objMarket.lsZone:
@@ -45,6 +47,7 @@ def calInvestmentPlanning(objMarket, instance):
             # initial dispatch for planning
             model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
             
+
             print("")
     
 
