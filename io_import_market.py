@@ -79,11 +79,11 @@ def get_ZoneProcessAvail(instance, objZone):
 
     sFilePath = _sFolderPath + "Zone/" + objZone.sZone + ".xlsx"
 
-    #### Policy constraints
     sSheetName = "AvailableProcess"
     dfData = io_import_util.getDataFrame(sFilePath,sSheetName)
     for index, row in dfData.iterrows():
 
+        # copy assumptions from country data
         for objCountryProcess in instance.lsRegion[objZone.iRegionIndex].lsCountry[objZone.iCountryIndex].lsProcessAssump:
             if objCountryProcess.sProcessName == row["ProcessName"]:
                 objZone.lsProcessAssump.append(copy.copy(objCountryProcess))

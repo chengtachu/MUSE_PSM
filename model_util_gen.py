@@ -75,13 +75,12 @@ def calLimitedDispatchGeneration(instance, objZone, objProcess, indexYS):
 
 
 
-def updatePowerResidualDemand_Yearly(instance, objMarket, indexYS):
+def updatePowerResidualDemand_Yearly(instance, objZone, indexYS):
     ''' update power residual demand '''
 
-    for indexZone, objZone in enumerate(objMarket.lsZone):
-        objZone.fPowerResDemand_TS_YS[:,indexYS] = objZone.fPowerDemand_TS_YS[:,indexYS] - objZone.fPowerOutput_TS_YS[:,indexYS]
-        objZone.fPowerResDemand_TS_YS[ objZone.fPowerResDemand_TS_YS[:,indexYS] < 0 ,indexYS] = 0
-        # power import/export from other market already account in ZoneDemand_iter_Init
+    objZone.fPowerResDemand_TS_YS[:,indexYS] = objZone.fPowerDemand_TS_YS[:,indexYS] - objZone.fPowerOutput_TS_YS[:,indexYS]
+    objZone.fPowerResDemand_TS_YS[ objZone.fPowerResDemand_TS_YS[:,indexYS] < 0 ,indexYS] = 0
+    # power import/export from other market already account in ZoneDemand_iter_Init
     return
 
 
@@ -173,11 +172,24 @@ def calHPSOperation(instance, objZone, objProcess, indexYS):
 def dispatch_thermalUnit(instance, objMarket, indexYS):
     ''' dispatch thermal units '''
 
-    # for each day
+    for indexDay, objDay in enumerate(instance.lsDayTimeSlice):
+        
+        # sort variable generation cost of the day (by the first timeslice of the day)
+        objMarket.lsDispatchProcessIndex = sorted(objMarket.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
+                                                  lsDispatchProcessIndex.fVariableGenCost_TS[objDay.lsDiurnalTS[0].iTimeSliceIndex])
+        
+        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
 
-        # sort variable generation cost
-
-        # dispatch with the commited units
+            # get the dispatch process            
+            for indexProcess, objProcessIndex in enumerate(objMarket.lsDispatchProcessIndex):
+                objZone = objMarket.lsZone[objProcessIndex.indexZone]
+                objProcess = objZone.lsProcess[objProcessIndex.indexProcess]
+                
+                # the process has to be commited
+                if objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] in [1,2]: 
+                    
+                    # dispatch the process
+                    dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, indexYS)
 
     return
 

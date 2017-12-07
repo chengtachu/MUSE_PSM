@@ -3,7 +3,8 @@
 
 import model_util
 import model_util_trans
-import model_VI
+import model_VI_dispatch
+import model_VI_plan
 
 class Market:
     """ create an region object  """
@@ -41,12 +42,13 @@ class Market:
         model_util_trans.constructTrans(self, instance, iHopLimit)
         
         # zone process initiation and calculate variable generation cost
-        model_util.process_Init(self, instance)
+        model_util.processVarCost_Init_model(self, instance)
                 
         # base year dispatch
-        model_VI.dispatch_Main(self, instance, instance.iFSBaseYearIndex)
+        model_VI_dispatch.dispatch_Main(self, instance, instance.iFSBaseYearIndex)
         
         # future investment
+        model_VI_plan.calInvestmentPlanning(self, instance)
         
             # update ancillary service requirement
         

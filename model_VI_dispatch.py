@@ -3,6 +3,7 @@
 import numpy as np
 
 import cls_misc
+import model_util
 import model_util_gen
 import model_util_trans
 import model_util_unitcom
@@ -15,10 +16,14 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     dispatch_Init(instance, objMarket, indexYearStep)
 
     # copy key information to market process list objMarket.lsDispatchProcessIndex
-    stackMarketDispatchProcess(instance, objMarket, indexYearStep)
+    objMarket.lsDispatchProcessIndex = list()
+    for indexZone, objZone in enumerate(objMarket.lsZone):
+        objZone.lsCHPProcessIndex = list()
+        stackMarketDispatchProcess(instance, objMarket, indexZone, objZone.lsProcess, indexYearStep)
 
     # Non-dispatchable generation (all time-slice)
-    dispatch_nondispatchable(instance, objMarket, indexYearStep)    
+    for objZone in objMarket.lsZone:
+        dispatch_nondispatchable(instance, objMarket, indexYearStep)    
     
     # limited dispatchable generation
     dispatch_limiteddispatchable(instance, objMarket, indexYearStep)  
@@ -38,14 +43,31 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     # dispatch main algorithm
     model_util_gen.dispatch_thermalUnit(instance, objMarket, indexYearStep)
 
-    # curtailment
-
     # initiate nodal price
+    model_util.nodeprice_Init(instance, objMarket, indexYearStep, "ExecMode")
 
     # calculate nodal price objDesSubregion.aNodalPrice_TS_YS
-
+    model_util.calNodalPrice(instance, objMarket, indexYearStep)
 
     return
+
+
+
+def dispatch_Plan(objMarket, instance, indexYearStep):
+    ''' the main function of dispatch for planning '''
+        
+    # reset variables
+    dispatch_Init(instance, objMarket, indexYearStep)
+    
+    # copy key information to market process list objMarket.lsDispatchProcessIndex
+    objMarket.lsDispatchProcessIndex = list()
+    for indexZone, objZone in enumerate(objMarket.lsZone):
+        objZone.lsCHPProcessIndex = list()
+        stackMarketDispatchProcess(instance, objMarket, indexZone, objZone.lsProcessOperTemp, indexYearStep)
+    
+
+    return
+
 
 
 
@@ -67,32 +89,30 @@ def dispatch_Init(instance, objMarket, indexYearStep):
     return
 
 
-def stackMarketDispatchProcess(instance, objMarket, indexYS):
+def stackMarketDispatchProcess(instance, objMarket, indexZone, lsProcess, indexYS):
     ''' stack up dispatchable process  '''
     
-    for indexZone, objZone in enumerate(objMarket.lsZone):
+    objZone = objMarket.lsZone[indexZone]
     
-        # power process to stack on market stack list
-        sYearStep = instance.iAllYearSteps_YS[indexYS]
-        for indexProcess, objProcess in enumerate(objZone.lsProcess):
-            if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-                if objProcess.sOperationMode == "Dispatch" and "CHP" not in objProcess.sProcessName:
-                    objMarket.lsDispatchProcessIndex.append(cls_misc.MarketDispatchProcess(  \
-                        indexZone=indexZone, indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
-                        fRampRatePerM=objProcess.RampRatePerM, fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS]   \
-                    ))
+    # power process to stack on market stack list
+    sYearStep = instance.iAllYearSteps_YS[indexYS]
+    for indexProcess, objProcess in enumerate(lsProcess):
+        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+            if objProcess.sOperationMode == "Dispatch" and "CHP" not in objProcess.sProcessName:
+                objMarket.lsDispatchProcessIndex.append(cls_misc.MarketDispatchProcess(  \
+                    indexZone=indexZone, indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
+                    fRampRatePerM=objProcess.RampRatePerM, fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
+
+    for objProcess in objMarket.lsDispatchProcessIndex:
+        objProcess.fDAOfferPrice_TS = np.zeros( len(instance.lsTimeSlice) )
     
-        for objProcess in objMarket.lsDispatchProcessIndex:
-            objProcess.fDAOfferPrice_TS = np.zeros( len(instance.lsTimeSlice) )
-        
-        # heat process to stack on zone stack list
-        for indexProcess, objProcess in enumerate(objZone.lsProcess):
-            if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-                if "CHP" in objProcess.sProcessName:
-                    objZone.lsCHPProcessIndex.append(cls_misc.ZoneCHPProcess(  \
-                        indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
-                        fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS]   \
-                    ))
+    # heat process to stack on zone stack list
+    for indexProcess, objProcess in enumerate(lsProcess):
+        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+            if "CHP" in objProcess.sProcessName:
+                objZone.lsCHPProcessIndex.append(cls_misc.ZoneCHPProcess(  \
+                    indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
+                    fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
         
     return
 
@@ -116,8 +136,8 @@ def dispatch_nondispatchable(instance, objMarket, indexYS):
                     # update operation status
                     objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1 # generating
     
-    # update power residual demand
-    model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
+        # update power residual demand
+        model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
 
     return
 
@@ -141,8 +161,8 @@ def dispatch_limiteddispatchable(instance, objMarket, indexYS):
                     # update operation status
                     objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1 # generating
     
-    # update power residual demand
-    model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
+        # update power residual demand
+        model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
 
     return
 
@@ -196,8 +216,8 @@ def dispatch_CHP(instance, objMarket, indexYS):
                     # update operation status
                     objCHP.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 # commited
                 
-    # update power residual demand
-    model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
+        # update power residual demand
+        model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
                 
     return
 
@@ -219,7 +239,7 @@ def dispatch_HPS(instance, objMarket, indexYS):
                     objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
         
                     # update power residual demand
-                    model_util_gen.updatePowerResidualDemand_Yearly(instance, objMarket, indexYS)
+                    model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
  
                     # update operation status
                     objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1  # generating

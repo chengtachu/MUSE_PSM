@@ -3,6 +3,7 @@
 import copy
 import numpy as np
 
+import cls_misc
 
 # ----------------------------------------------------------------------------------------------------------------------
 # model_fisrt_Init
@@ -15,10 +16,12 @@ def model_fisrt_Init(objMarket, instance):
     if instance.iForesightStartYear == instance.iBaseYear and objMarket.MarketOutput.dicGenCapacity_YR_TC == {} :
 
         # create zone variables
-        ZoneDemandVar_first_Init(objMarket, instance)
+        for objZone in objMarket.lsZone:
+            createZoneVars(instance, objZone)
 
         # process variables initiation
-        ZoneProcessVar_Init(objMarket, instance)
+        for objZone in objMarket.lsZone:
+            createProcessVar(instance, objZone.lsProcess)
 
         # transmission initiation
         MarketTransmission_Init(objMarket, instance)
@@ -31,60 +34,57 @@ def model_fisrt_Init(objMarket, instance):
 
 
 
-def ZoneDemandVar_first_Init(objMarket, instance):
+def createZoneVars(instance, objZone):
     ''' create zone variables '''
-        
-    for objZone in objMarket.lsZone:
-        
-        # variable initiation
-        objZone.fPowerOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fPowerResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fHeatOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fHeatResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        
-        objZone.fASRqrRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fASRqr10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fASRqr30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fASDfcRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fASDfc10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-        objZone.fASDfc30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+
+    objZone.fPowerOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fPowerResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fHeatOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fHeatResDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    
+    objZone.fMarginalGenCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fNodalPrice_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+
+    objZone.fASRqrRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fASRqr10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fASRqr30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fASDfcRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fASDfc10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    objZone.fASDfc30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
         
     return
 
 
-
-def ZoneProcessVar_Init(objMarket, instance):
+def createProcessVar(instance, lsProcess):
     ''' initiate process variables '''
-        
-    for objZone in objMarket.lsZone:
-        for objProcess in objZone.lsProcess:
 
-            objProcess.fGenCostPerUnit_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+    for objProcess in lsProcess:
 
-            objProcess.fHourlyPowerOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            objProcess.fHourlyHeatOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-    
-            objProcess.iOperatoinStatus_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-    
-            objProcess.fASRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            objProcess.fAS10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            objProcess.fAS30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-    
-            objProcess.fGenerationCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            objProcess.fFuelConsumption_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            objProcess.fCarbonCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            objProcess.fGenerationCost_YS = np.zeros(len(instance.iAllYearSteps_YS))
-    
-            objProcess.fAnnualFixedCostPerMW = 0
-            objProcess.fPriceMarkUp = 0
-    
-            objProcess.fAnnualInvestment_YS = np.zeros(len(instance.iAllYearSteps_YS))
-    
-            objProcess.fDAMarketVolumn_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            objProcess.fDAOfferPrice_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            
+        objProcess.fGenCostPerUnit_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+
+        objProcess.fHourlyPowerOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objProcess.fHourlyHeatOutput_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+
+        objProcess.iOperatoinStatus_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+
+        objProcess.fASRegulation_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objProcess.fAS10MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objProcess.fAS30MinReserve_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+
+        objProcess.fGenerationCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objProcess.fFuelConsumption_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objProcess.fCarbonCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objProcess.fGenerationCost_YS = np.zeros(len(instance.iAllYearSteps_YS))
+
+        objProcess.fAnnualFixedCostPerMW = 0
+        objProcess.fPriceMarkUp = 0
+
+        objProcess.fAnnualInvestment_YS = np.zeros(len(instance.iAllYearSteps_YS))
+
+        objProcess.fDAMarketVolumn_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        objProcess.fDAOfferPrice_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+
     return
-
 
 
 def MarketTransmission_Init(objMarket, instance):
@@ -104,7 +104,6 @@ def MarketTransmission_Init(objMarket, instance):
         objTrans.fTransNewBuild_YS = np.zeros(len(instance.iAllYearSteps_YS))
         objTrans.fTransAccCapacity_YS = np.empty(len(instance.iAllYearSteps_YS))
         objTrans.fTransAccCapacity_YS.fill(fCapacity)
-
 
     # initialize transmission
     for objTrans in objMarket.lsTransmission:
@@ -135,10 +134,15 @@ def model_iter_Init(objMarket, instance):
     ''' market initiation for each new foresight iteration '''
     
     # calculate the required generation from power plants (include distribution loss and import/export)
-    ZoneDemand_iter_Init(objMarket, instance)
+    for objZone in objMarket.lsZone:
+        ZoneDemand_iter_Init(instance, objZone)
 
-    # move commit or decommit process, calculate derived cost, derated capacity
-    ZoneExistProcess_Init(objMarket, instance)
+    # move commit or decommit process
+    ZoneProcess_Commit(instance, objMarket)
+        
+    # calculate derived cost, derated capacity
+    for objZone in objMarket.lsZone:
+        ZoneProcess_Init(objZone.lsProcess)
         
     # assign ancillary service in the market
     ZoneAncillaryServiceReq_Init(objMarket, instance)
@@ -146,71 +150,79 @@ def model_iter_Init(objMarket, instance):
     return
 
 
-def ZoneDemand_iter_Init(objMarket, instance):
+def ZoneDemand_iter_Init(instance, objZone):
     ''' calculate the required generation from power plants (include distribution loss and import/export) '''
-        
-    for objZone in objMarket.lsZone:
-        
-        # account for power distribution loss
-        objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
-        objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] * (1 + objZone.fPowerDistLossRate_YS[instance.iFSBaseYearIndex:] / 100)
-    
-        # account for import/export 
-        objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
-        objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] - objZone.fCrossMarketPowerImport_TS_YS[:,instance.iFSBaseYearIndex:]
 
-        # account for heat distribution loss
-        objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
-        objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] * (1 + objZone.fHeatDistLossRate_YS[instance.iFSBaseYearIndex:] / 100)
+    # account for power distribution loss
+    objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
+    objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] * (1 + objZone.fPowerDistLossRate_YS[instance.iFSBaseYearIndex:] / 100)
 
-        # convert head demand unit GJ/h -> MW
-        objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] = objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] * 0.27778
+    # account for import/export 
+    objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
+    objZone.fPowerDemand_TS_YS[:,instance.iFSBaseYearIndex:] - objZone.fCrossMarketPowerImport_TS_YS[:,instance.iFSBaseYearIndex:]
+
+    # account for heat distribution loss
+    objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] = \
+    objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] * (1 + objZone.fHeatDistLossRate_YS[instance.iFSBaseYearIndex:] / 100)
+
+    # convert head demand unit GJ/h -> MW
+    objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] = objZone.fHeatDemand_TS_YS[:,instance.iFSBaseYearIndex:] * 0.27778
 
     return
 
 
-def ZoneExistProcess_Init(objMarket, instance):
-    ''' move commit or decommit process, calculate derived cost, derated capacity '''
-            
-    # move decommited plant into decommitioned list
+def ZoneProcess_Commit(instance, objMarket):
+    ''' move commit or decommit process '''
+    
     for objZone in objMarket.lsZone:
+        # move decommited plant into decommitioned list 
         for objProcess in list(objZone.lsProcess):
-            
             if objProcess.DeCommitTime <= instance.iForesightStartYear:
                 objZone.lsProcessDecomm.append(copy.copy(objProcess))
                 objZone.lsProcess.remove(objProcess)
-
-        # don't move plant decommited in the future into future list, if the data read from database, they should be planned for the near future
-
+    
+        # move in new commisioned plants
+        for objProcess in list(objZone.lsProcessPlanned):
+            if objProcess.CommitTime <= instance.iForesightStartYear:
+                objZone.lsProcess.append(copy.copy(objProcess))
+                objZone.lsProcessPlanned.remove(objProcess)
+           
+        # existing process to be built in the near future still in the lsProcess
+    
+    return
+    
+    
+def ZoneProcess_Init(lsProcess):
+    ''' calculate derived cost, derated capacity '''
+            
+    # don't move plant decommited in the future into future list, if the data read from database, they should be planned for the near future
 
     # calculate derived parameters for existing plants 
-    for objZone in objMarket.lsZone:
-        for objProcess in objZone.lsProcess:
+    for objProcess in lsProcess:
 
-            ### fixed cost
-            fCapacity = objProcess.Capacity                                     # MW
-            fCapitalCost = objProcess.CAPEX * objProcess.Capacity * 1000        # USD/KW * MW * 1000 = USD
-            fYearOMCost = objProcess.OPEX * objProcess.Capacity * 1000          # USD/KW * MW * 1000 = USD
-            fDiscountRate = objProcess.DiscountRate / 100
-            iPlantLife = objProcess.TechnicalLife
-    
-            # fCapitalRecoveyFactor = (D*(1+D)^L) / ( ((1+D)^L)-1 )
-            fCapitalRecoveyFactor =  ( fDiscountRate * ((1+fDiscountRate)**iPlantLife)) / ( ((1+fDiscountRate)**iPlantLife) - 1 )
-    
-            objProcess.fAnnualCapex = fCapitalCost * fCapitalRecoveyFactor / 1000000            # MillionUSD / year
-            objProcess.fAnnualFixedCost = objProcess.fAnnualCapex + (fYearOMCost / 1000000)     # MillionUSD / year
-    
-            ### derated capacity
-            fAvailability = objProcess.Availability
-            fOwnUseRate = objProcess.OwnUseRate
-            objProcess.fDeratedCapacity = fCapacity * (fAvailability / 100) * (1 - fOwnUseRate / 100)     # MW
+        ### fixed cost
+        fCapacity = objProcess.Capacity                                     # MW
+        fCapitalCost = objProcess.CAPEX * objProcess.Capacity * 1000        # USD/KW * MW * 1000 = USD
+        fYearOMCost = objProcess.OPEX * objProcess.Capacity * 1000          # USD/KW * MW * 1000 = USD
+        fDiscountRate = objProcess.DiscountRate / 100
+        iPlantLife = objProcess.TechnicalLife
+
+        # fCapitalRecoveyFactor = (D*(1+D)^L) / ( ((1+D)^L)-1 )
+        fCapitalRecoveyFactor =  ( fDiscountRate * ((1+fDiscountRate)**iPlantLife)) / ( ((1+fDiscountRate)**iPlantLife) - 1 )
+
+        objProcess.fAnnualCapex = fCapitalCost * fCapitalRecoveyFactor / 1000000            # MillionUSD / year
+        objProcess.fAnnualFixedCost = objProcess.fAnnualCapex + (fYearOMCost / 1000000)     # MillionUSD / year
+
+        ### derated capacity
+        fAvailability = objProcess.Availability
+        fOwnUseRate = objProcess.OwnUseRate
+        objProcess.fDeratedCapacity = fCapacity * (fAvailability / 100) * (1 - fOwnUseRate / 100)     # MW
 
     # calculate CHP power generation ratio
-    for objZone in objMarket.lsZone:
-        for objProcess in objZone.lsProcess:
-            if "CHP" in objProcess.sProcessName:
-                # we assume all CHP process is back-pressure for now
-                objProcess.fCHPPowerRatio = objProcess.EffPowerBP / (objProcess.EffPowerBP + objProcess.EffHeatBP)
+    for objProcess in lsProcess:
+        if "CHP" in objProcess.sProcessName:
+            # we assume all CHP process is back-pressure for now
+            objProcess.fCHPPowerRatio = objProcess.EffPowerBP / (objProcess.EffPowerBP + objProcess.EffHeatBP)
                 
     return
 
@@ -365,92 +377,312 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
 # process init
 # ----------------------------------------------------------------------------------------------------------------------
 
-def process_Init(objMarket, instance):
-    ''' commit and decommit process, and calculate derived variables '''
-        
-    # move processes in lsProcess, lsProcessDecomm and lsProcessFuture
-    for objZone in objMarket.lsZone:
 
-        # move decommited plant into decommitioned list 
-        for objProcess in list(objZone.lsProcess):
-            if objProcess.DeCommitTime <= instance.iForesightStartYear:
-                objZone.lsProcessDecomm.append(copy.copy(objProcess))
-                objZone.lsProcess.remove(objProcess)
-    
-        # move in new commisioned plants
-        for objProcess in list(objZone.lsProcessFuture):
-            if objProcess.CommitTime <= instance.iForesightStartYear:
-                objZone.lsProcess.append(copy.copy(objProcess))
-                objZone.lsProcessFuture.remove(objProcess)
-           
-        # existing process to be built in the near future still in the lsProcess
-            
-            
+def processVarCost_Init_model(objMarket, instance):
+    ''' commit and decommit process, and calculate derived variables '''
+                    
     # calculate variable generation cost
     for objZone in objMarket.lsZone:
+        processVarCost_Init(instance, objMarket, objZone, objZone.lsProcess)
         
-        objCountry = instance.lsRegion[objZone.iRegionIndex].lsCountry[objZone.iCountryIndex]
-        
-        for objProcess in list(objZone.lsProcess):
-            
-            # process efficiency
-            if "CHP" in objProcess.sProcessName:
-                fProcessEff = max(objProcess.EffPowerCM, objProcess.EffPowerBP + objProcess.EffHeatBP)
-            else:
-                fProcessEff = objProcess.EffPowerCM
-                    
-            
-            # -------- running cost ------------
-            fRunningCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-            fRunningCost_TS_YS.fill(objProcess.RunningCost)
-    
-            # sum up generation cost
-            objProcess.fVariableGenCost_TS_YS = fRunningCost_TS_YS
-    
-            # dispatchable plant (thermal generation, except some large hyro)
-            if objProcess.sOperationMode == "Dispatch":
-    
-                # get the carrier object
-                for objCommodity in objCountry.lsCommodity:
-                    if objCommodity.sCommodityName == objProcess.sFuel:
-                        objFuel = objCommodity
-                        break
+    return
 
-                # ----------- fuel cost --------------
-                # get fuel price (USD/LOE)
-                fFuelPrice_TS_YS = objFuel.fFuelPrice_TS_YS
+
+def processVarCost_Init(instance, objMarket, objZone, lsProcess):
+    ''' commit and decommit process, and calculate derived variables '''
+                    
+    # calculate variable generation cost
+
+    objCountry = instance.lsRegion[objZone.iRegionIndex].lsCountry[objZone.iCountryIndex]
     
-                # conver fuel cost from (USD/LOE) to (USD/kWh)  
-                # fFuelPrice = fFuelPrice / 10.46  USD/LOE -> USD/kWh
-                # fFuelPrice = fFuelPrice / 277.8  MUSD/PJ -> MUSD/GWh = USD/kWh
-                fFuelPrice_TS_YS = fFuelPrice_TS_YS / 10.46
-    
-                # get plant tech conversion efficiency (USD/kWh)
-                fFuelCost_TS_YS = fFuelPrice_TS_YS / (fProcessEff / 100)
-    
-    
-                # ----------- emission cost ---------------
-                # emission factor (kg/MJ = MTon/PJ)
-                fEmissionFactor = objFuel.fEmissionFactor_CO2
-                # fuel consumption per kWh
-                fFuelConsumption = 1 / (fProcessEff / 100)    # kWh
-                fFuelConsumption = fFuelConsumption * 3.6    # kWh -> MJ (per kWh)
-                # capture rate
-                fCCSCaptureRate = objProcess.CCSCaptureRate / 100
-                # carbon cost (USD/Tonne -> USD/kg)
-                fCarbonCost_YS = objCountry.fCarbonCost_YS / 1000
-    
-                # emission cost  (kg/MJ) * (MJ/kWh) * (USD/kg) = USD/kWh
-                fEmissionCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
-                fEmissionCost_TS_YS[:,:] = fEmissionFactor * fFuelConsumption * (1-fCCSCaptureRate) * fCarbonCost_YS
-                if objFuel.sCategory == "biofuel":
-                    fEmissionCost_TS_YS += fEmissionFactor * fFuelConsumption * fCCSCaptureRate * fCarbonCost_YS * -1
-    
-                # sum up generation cost
-                objProcess.fVariableGenCost_TS_YS += fFuelCost_TS_YS + fEmissionCost_TS_YS
-                objProcess.fVariableGenCost_TS_YS = np.around(objProcess.fVariableGenCost_TS_YS, 4)
+    for objProcess in list(lsProcess):
+        
+        # process efficiency
+        if "CHP" in objProcess.sProcessName:
+            fProcessEff = max(objProcess.EffPowerCM, objProcess.EffPowerBP + objProcess.EffHeatBP)
+        else:
+            fProcessEff = objProcess.EffPowerCM
+                
+        
+        # -------- running cost ------------
+        fRunningCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+        fRunningCost_TS_YS.fill(objProcess.RunningCost)
+
+        # sum up generation cost
+        objProcess.fVariableGenCost_TS_YS = fRunningCost_TS_YS
+
+        # dispatchable plant (thermal generation, except some large hyro)
+        if objProcess.sOperationMode == "Dispatch":
+
+            # get the carrier object
+            for objCommodity in objCountry.lsCommodity:
+                if objCommodity.sCommodityName == objProcess.sFuel:
+                    objFuel = objCommodity
+                    break
+
+            # ----------- fuel cost --------------
+            # get fuel price (USD/LOE)
+            fFuelPrice_TS_YS = objFuel.fFuelPrice_TS_YS
+
+            # conver fuel cost from (USD/LOE) to (USD/kWh)  
+            # fFuelPrice = fFuelPrice / 10.46  USD/LOE -> USD/kWh
+            # fFuelPrice = fFuelPrice / 277.8  MUSD/PJ -> MUSD/GWh = USD/kWh
+            fFuelPrice_TS_YS = fFuelPrice_TS_YS / 10.46
+
+            # get plant tech conversion efficiency (USD/kWh)
+            fFuelCost_TS_YS = fFuelPrice_TS_YS / (fProcessEff / 100)
+
+
+            # ----------- emission cost ---------------
+            # emission factor (kg/MJ = MTon/PJ)
+            fEmissionFactor = objFuel.fEmissionFactor_CO2
+            # fuel consumption per kWh
+            fFuelConsumption = 1 / (fProcessEff / 100)    # kWh
+            fFuelConsumption = fFuelConsumption * 3.6    # kWh -> MJ (per kWh)
+            # capture rate
+            fCCSCaptureRate = objProcess.CCSCaptureRate / 100
+            # carbon cost (USD/Tonne -> USD/kg)
+            fCarbonCost_YS = objCountry.fCarbonCost_YS / 1000
+
+            # emission cost  (kg/MJ) * (MJ/kWh) * (USD/kg) = USD/kWh
+            fEmissionCost_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
+            fEmissionCost_TS_YS[:,:] = fEmissionFactor * fFuelConsumption * (1-fCCSCaptureRate) * fCarbonCost_YS
+            if objFuel.sCategory == "biofuel":
+                fEmissionCost_TS_YS += fEmissionFactor * fFuelConsumption * fCCSCaptureRate * fCarbonCost_YS * -1
+
+            # sum up generation cost
+            objProcess.fVariableGenCost_TS_YS += fFuelCost_TS_YS + fEmissionCost_TS_YS
+            objProcess.fVariableGenCost_TS_YS = np.around(objProcess.fVariableGenCost_TS_YS, 4)
             
     return
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# node price
+# ----------------------------------------------------------------------------------------------------------------------
+
+def nodeprice_Init(instance, objMarket, indexYS, sMode):
+
+    for objZone in objMarket.lsZone:
+        
+        if sMode == "ExecMode":
+            lsProcess = objZone.lsProcess
+        elif sMode == "PlanMode":
+            lsProcess = objZone.lsProcessOperTemp
+        
+        aMGC = np.zeros(len(instance.lsTimeSlice))
+
+        for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+            for indexP, objProcess in enumerate(lsProcess):
+                
+                if objProcess.fHourlyPowerOutput_TS_YS[indexTS, indexYS] > 1:
+                    if objProcess.sOperationMode == "Dispatch":
+                        
+                        # must-run block doesn't count
+                        fMustRunOutput = objProcess.fDeratedCapacity * (objProcess.MinLoadRate / 100)
+                        if objProcess.fHourlyPowerOutput_TS_YS[indexTS, indexYS] > (fMustRunOutput + 1) and objProcess.fVariableGenCost_TS_YS[indexTS, indexYS] > aMGC[indexTS]:
+                            aMGC[indexTS] = objProcess.fVariableGenCost_TS_YS[indexTS, indexYS]
+                    else:
+                        if objProcess.fVariableGenCost_TS_YS[indexTS, indexYS] > aMGC[indexTS]:
+                            aMGC[indexTS] = objProcess.fVariableGenCost_TS_YS[indexTS, indexYS]
+                            
+        objZone.fMarginalGenCost_TS_YS[:,indexYS] = aMGC
+        objZone.fNodalPrice_TS_YS[:,indexYS] = copy.deepcopy(objZone.fMarginalGenCost_TS_YS[:,indexYS])
+
+    return
+
+
+def calNodalPrice(instance, objMarket, indexYS):
+    ''' calculate nodal price fNodalPrice_TS_YS '''
+    
+    for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+        
+        # create a dictionary to sort the nodal price
+        lsVariableGenCost_ZN = []
+        for indexZone, objZone in enumerate(objMarket.lsZone):
+            lsVariableGenCost_ZN.append([indexZone, objZone.fNodalPrice_TS_YS[indexTS,indexYS]])
+        lsVariableGenCost_ZN = sorted(lsVariableGenCost_ZN, key=lambda lsVariableGenCost_ZN: lsVariableGenCost_ZN[1], reverse=True)
+
+        # algorighm starts from high nodal price
+        for indexZone in lsVariableGenCost_ZN:
+            objZone = objMarket.lsZone[indexZone[0]]
+
+            for iLine, objLine in enumerate(objMarket.lsTransmission): 
+                if objLine.From == objZone.sZone:
+                    
+                    # get direct connected subregion
+                    objConnectZone = None
+                    for objDesZone in objMarket.lsZone:
+                        if objLine.To == objDesZone.sZone:
+                            objConnectZone = objDesZone
+                            break
+    
+                    if objLine.fTransLineInput_TS_YS[indexTS,indexYS] > 0.01:
+                        # nodal price of destination
+                        fCurrentNodalPrice = objZone.fNodalPrice_TS_YS[indexTS,indexYS]
+                        fDesNodalPrice = objConnectZone.fNodalPrice_TS_YS[indexTS,indexYS]
+                        if (fCurrentNodalPrice / (1 - objLine.FlowLossRate/100)) > fDesNodalPrice:
+                            objConnectZone.fNodalPrice_TS_YS[indexTS,indexYS] = fCurrentNodalPrice / (1 - objLine.FlowLossRate/100)
+
+    return
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# capacity planning
+# ----------------------------------------------------------------------------------------------------------------------
+
+def getNewProcessCandidate(instance, objZone, indexYS):
+    ''' return a list of plant with each technology in a region '''
+    
+    listNewPlantCandidate = list()
+    for objProcessAssump in objZone.lsProcessAssump:
+        
+        objNewProcessAssump = copy.deepcopy(objProcessAssump)
+
+        # basic parameters
+        sPlantID = objNewProcessAssump.sProcessName + "_" + str(instance.iAllYearSteps_YS[indexYS])
+        sProcessName = objNewProcessAssump.sProcessName
+        dicParameters = {}
+        sCompanyName = objZone.sZone    # need to assign the company name
+        objNewProcess = cls_misc.ZoneProcess(sCompanyName , sProcessName, sPlantID, dicParameters)
+        # set parameters
+        objNewProcess.bCCS = objNewProcessAssump.bCCS
+        objNewProcess.sProcessFullName = objNewProcessAssump.sProcessFullName
+        objNewProcess.sFuel = objNewProcessAssump.sFuel
+        objNewProcess.sOperationMode = objNewProcessAssump.sOperationMode
+        # set technical parameters (inherit from region assumption)
+        # default capacity to boot running speed
+        if objNewProcessAssump.StdUnitCapacity > np.average(objZone.fPowerDemand_TS_YS[:,indexYS]) / 30:
+            objNewProcess.Capacity = objNewProcessAssump.StdUnitCapacity
+        else:
+            objNewProcess.Capacity = np.average(objZone.fPowerDemand_TS_YS[:,indexYS]) / 30
+        objNewProcess.TechnicalLife = objNewProcessAssump.TechnicalLife
+        objNewProcess.NoUnit = int(objNewProcess.Capacity // objNewProcessAssump.StdUnitCapacity) + 1
+        objNewProcess.CommitTime = instance.iAllYearSteps_YS[indexYS]
+        objNewProcess.DeCommitTime = instance.iAllYearSteps_YS[indexYS] + objNewProcessAssump.TechnicalLife
+        objNewProcess.Company = sCompanyName
+        objNewProcess.OwnUseRate = objNewProcessAssump.OwnUseRate
+        objNewProcess.Availability = objNewProcessAssump.Availability
+        objNewProcess.MinLoadRate = objNewProcessAssump.MinLoadRate
+        objNewProcess.CCSCaptureRate = objNewProcessAssump.CCSCaptureRate
+        objNewProcess.DayStorageOutput = objNewProcessAssump.DayStorageOutput
+        objNewProcess.EffPowerCM = objNewProcessAssump.fEffPowerCM_YS[indexYS]
+        objNewProcess.EffPowerBP = objNewProcessAssump.fEffPowerBP_YS[indexYS]
+        objNewProcess.EffHeatBP = objNewProcessAssump.fEffHeatBP_YS[indexYS]
+        # set cost assumptions (inherit from region assumption)
+        objNewProcess.CAPEX = objNewProcessAssump.fCAPEX_YS[indexYS]
+        objNewProcess.OPEX = objNewProcessAssump.fOPEX_YS[indexYS]
+        objNewProcess.RunningCost = objNewProcessAssump.fRunningCost_YS[indexYS]
+        objNewProcess.DiscountRate = objNewProcessAssump.fDiscountRate_YS[indexYS]
+
+        listNewPlantCandidate.append(objNewProcess)
+
+    return listNewPlantCandidate
+
+
+def getNewBuildCapacityLimit(instance, objZone, lsProcess, lsProcessPlanned, lsProcessCandidate, indexYS):
+    ''' total allowed new build capacity according to capacity constraints '''
+    
+    iYearStep = instance.iAllYearSteps_YS[indexYS]
+    lsOperationalPlants = getOperationalProcessList(lsProcess, lsProcessPlanned, iYearStep)
+
+    for indexTC, objProcess in enumerate(lsProcessCandidate):
+        sProcessName = objProcess.sProcessName
+
+        fMaxYearCapacity, fMaxNewInstallCapacity = getCapacityConstraints(instance, objZone, sProcessName, indexYS)
+
+        # check maximum capacity constraints
+        fTotalExitCapacity = 0
+        for indexP, objOprProcess in enumerate(lsOperationalPlants):
+            if objOprProcess.sProcessName == sProcessName:
+                if objOprProcess.DeCommitTime > iYearStep and objOprProcess.CommitTime < iYearStep:
+                    fTotalExitCapacity += objOprProcess.Capacity
+
+        if fMaxNewInstallCapacity > (fMaxYearCapacity-fTotalExitCapacity):
+            objProcess.fMaxAllowedNewBuildCapacity = fMaxYearCapacity-fTotalExitCapacity
+        else:
+            objProcess.fMaxAllowedNewBuildCapacity = fMaxNewInstallCapacity
+
+    return
+
+
+def getOperationalProcessList(lsProcess, lsProcessPlanned, iYearStep):
+    ''' return a combined process list which are in operation in the given year step '''
+    
+    listOperationalPlants = list()
+
+    for indexP, objPlant in enumerate(lsProcess):
+        if objPlant.DeCommitTime > iYearStep and objPlant.CommitTime <= iYearStep:
+            listOperationalPlants.append(copy.copy(objPlant))
+
+    for indexP, objPlant in enumerate(lsProcessPlanned):
+        if objPlant.DeCommitTime > iYearStep and objPlant.CommitTime <= iYearStep:
+            listOperationalPlants.append(copy.copy(objPlant))
+
+    return listOperationalPlants
+
+
+def getCapacityConstraints(instance, objZone, sProcessName, indexYS):
+    ''' get capacity constraints '''
+    
+    fMaxYearCapacity = 0
+    fMaxNewInstallCapacity = 0
+
+    iYearPeriod = instance.iAllYearSteps_YS[indexYS] - instance.iAllYearSteps_YS[indexYS-1]
+
+    for objProcessAssump in objZone.lsProcessAssump:
+        if objProcessAssump.sProcessName == sProcessName:
+            fMaxYearCapacity = objProcessAssump.fMaxCapacity_YS[indexYS]
+            fMaxNewInstallCapacity = objProcessAssump.fMaxBuildRate_YS[indexYS] * iYearPeriod  # takes into account the interval
+            break
+
+    return fMaxYearCapacity, fMaxNewInstallCapacity
+
+
+def getNewStorageCandidate(lsProcessCandidate):
+    ''' return a list of new storage process candidate '''
+    
+    lsNewStorageCandidate = list()
+
+    for objProcess in list(lsProcessCandidate):
+        if objProcess.sOperationMode == "Storage":
+            lsNewStorageCandidate.append(copy.copy(objProcess))
+            lsProcessCandidate.remove(objProcess)
+
+    return lsNewStorageCandidate
+
+
+def getNewCHPCandidate(lsProcessCandidate):
+    ''' return a list of new storage process candidate '''
+    
+    lsNewCHPCandidate = list()
+
+    for objProcess in list(lsProcessCandidate):
+        if "CHP" in objProcess.sProcessName:
+            lsNewCHPCandidate.append(copy.copy(objProcess))
+            lsProcessCandidate.remove(objProcess)
+
+    return lsNewCHPCandidate
+
+
+def getOperationalPlantList(lsProcess, lsProcessPlanned, iYearStep):
+    ''' return a combined plant list which are in operation in the given time period '''
+    
+    lsProcessOperTemp = list()
+
+    for indexP, objProcess in enumerate(lsProcess):
+        if objProcess.DeCommitTime > iYearStep and objProcess.CommitTime <= iYearStep:
+            lsProcessOperTemp.append(copy.copy(objProcess))
+
+    for indexP, objProcess in enumerate(lsProcessPlanned):
+        if objProcess.DeCommitTime > iYearStep and objProcess.CommitTime <= iYearStep:
+            lsProcessOperTemp.append(copy.copy(objProcess))
+
+    return lsProcessOperTemp
+
+
+
+
 
 
 
