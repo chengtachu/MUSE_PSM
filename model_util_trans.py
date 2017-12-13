@@ -25,7 +25,7 @@ def constructTrans(objMarket, instance, iHopLimit):
                         break
 
                 objNewPath.iHopCount = iExpendLevel
-                objNewPath.fAvailTransCapacity = np.zeros(len(instance.lsTimeSlice))
+                objNewPath.fAvailTransCapacity_TS = np.zeros(len(instance.lsTimeSlice))
                 objNewPath.fLineLoss = objTrans.FlowLossRate / 100
                 # path out
                 objNewPath.lsFlowPathOut.append(indexLine)
@@ -72,7 +72,7 @@ def _constructNextNode(instance, objMarket, objZone, objExistPath, iExpendLevel,
                         break
 
                 objNewPath.iHopCount = iExpendLevel
-                objNewPath.fAvailTransCapacity = np.zeros(len(instance.lsTimeSlice))
+                objNewPath.fAvailTransCapacity_TS = np.zeros(len(instance.lsTimeSlice))
                 objNewPath.fLineLoss = 1 - ( (1 - objNewPath.fLineLoss) * ( 1 - objTrans.FlowLossRate/100) )
                 # path out
                 objNewPath.lsFlowPathOut.append(indexLine)
@@ -308,6 +308,21 @@ def checkPowerOverGeneration(objMarket, objZone, indexTS, indexYS):
         fOverGeneration = -fResidualDemand
 
     return fOverGeneration
+
+
+
+def updateConnectionPathAvailCapacity(instance, objMarket, indexYS):
+    ''' calculate the max injection of the selected path '''
+    
+    for objZone in objMarket.lsZone:
+
+        for iPathIndex, objConnPath in enumerate(objZone.lsConnectPath): 
+            for indexTS, objTS in enumerate(instance.lsTimeSlice): 
+                objConnPath.fAvailTransCapacity_TS[indexTS] = calPathMaxInjection(objMarket, objZone, iPathIndex, 999999, indexTS, indexYS)
+
+    return
+
+
 
 
 

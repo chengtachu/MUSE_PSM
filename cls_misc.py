@@ -176,7 +176,7 @@ class ConnectionPath:
         self.lsFlowPathOut = list()
         self.lsFlowPathIn = list()
         self.fDistance = None
-        self.fAvailTransCapacity = None
+        self.fAvailTransCapacity_TS = None
         self.fLineLoss = None
 
         return
