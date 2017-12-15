@@ -75,16 +75,6 @@ def calLimitedDispatchGeneration(instance, objZone, objProcess, indexYS):
 
 
 
-def updatePowerResidualDemand_Yearly(instance, objZone, indexYS):
-    ''' update power residual demand '''
-
-    objZone.fPowerResDemand_TS_YS[:,indexYS] = objZone.fPowerDemand_TS_YS[:,indexYS] - objZone.fPowerOutput_TS_YS[:,indexYS]
-    objZone.fPowerResDemand_TS_YS[ objZone.fPowerResDemand_TS_YS[:,indexYS] < 0 ,indexYS] = 0
-    # power import/export from other market already account in ZoneDemand_iter_Init
-    return
-
-
-
 def calHPSOperation(instance, objZone, objProcess, indexYS):
     ''' calculate hydro pump storage operation '''
 
@@ -228,7 +218,7 @@ def dispatch_thermalUnit(instance, objMarket, indexYS, sMode):
                                     objZone.fPowerOutput_TS_YS[indexTS,indexYS] -= fOverGeneration
                                     fOverGeneration = 0
                                     
-                                model_util_trans.updatePowerResDemandWithTrans(objMarket, objZone, indexTS, indexYS)
+                                model_util.updatePowerResDemandWithTrans(objMarket, objZone, indexTS, indexYS)
  
     return
 
@@ -290,7 +280,7 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
             
             # update the residual demand
             objDestZone = objMarket.lsZone[objZone.lsConnectPath[iPathIndex].iDestZoneIndex]
-            model_util_trans.updatePowerResDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
+            model_util.updatePowerResDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
 
         else:
             # all line is full, break the loop

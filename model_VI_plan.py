@@ -20,11 +20,7 @@ def calInvestmentPlanning(objMarket, instance):
         if iYearStep > instance.iForesightStartYear:
             indexYear = indexYS + instance.iFSBaseYearIndex
     
-            # update ancillary service requirement
-    
-            # CHP investment
-    
-            # generate zonal price projection (using the same capacity mix but new fuel and carbon cost)
+            ### update ancillary service requirement ###
     
             #--------------------------------------------------------------
             # creat candidate new technology plant list
@@ -48,14 +44,33 @@ def calInvestmentPlanning(objMarket, instance):
                 # separate CHP candidate technology
                 objZone.lsNewCHPCandidate = model_util.getNewCHPCandidate(lsProcessCandidate)
                 
-            # compile(copy) a operational process list
+                
+            # compile(copy) a operational power generation process list
             for objZone in objMarket.lsZone:
                 objZone.lsProcessOperTemp = model_util.getOperationalProcessList(objZone.lsProcess, objZone.lsProcessPlanned, iYearStep)
                 
             # initial dispatch for planning
             model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
             
-            
+            #--------------------------------------------------------------
+            # CHP investment (we assume heat does not trade cross-zone)
+            for objZone in objMarket.lsZone:
+                bFinishCHPPlanning = False
+                while (not bFinishCHPPlanning):
+                
+                    # calculate the residual heat in the year
+                    model_util.updateHeatResidualDemand_Yearly(instance, objZone, indexYear)
+                    
+                    # select the index with lowest demand (variable part will be served with heat plant)
+                    indexValleyDemand = np.argmin(objZone.fHeatResDemand_TS_YS[:, indexYear])
+                    
+                    # calculate the LCOE of all CHP plant (we assume the generaton only serve fixed part)
+                    calAllNewCHPPlantLCOE(instance, objMarket, iYearStep)
+
+                    # install the CHP plant with least LCOE
+                    
+                    
+
             #--------------------------------------------------------------
             # calculated the required renewable generation with target
             # capacity planning for renewable (LCOE)
@@ -77,6 +92,7 @@ def calInvestmentPlanning(objMarket, instance):
                 # biomass(?)
             
             
+            '''
             #--------------------------------------------------------------
             # install new plant to serve residual demand (include renewables)
             bFinishYearPlanning = False
@@ -86,7 +102,7 @@ def calInvestmentPlanning(objMarket, instance):
                 model_util_trans.updateConnectionPathAvailCapacity(instance, objMarket, iYearStep)
                 
                 # calculate the LCOE of all plant
-                calAllNewPlantLCOE(instance, objMarket, iYearStep)
+                calAllNewPowerPlantLCOE(instance, objMarket, iYearStep)
 
                 # install the new plant with lowest LCOE (add to objZone.listGenPlantFuture and objZone.listGenPlantOperTemp)
 
@@ -98,28 +114,42 @@ def calInvestmentPlanning(objMarket, instance):
 
 
                 # check all residual demand
-
-                
+            '''
                 
             #--------------------------------------------------------------
             # install new plant to reach ancillary service requirement
                 
-            
-            
-            #--------------------------------------------------------------
-            # remove over investment
-            
-            
+
             print("")
 
     return
 
 
 
-def calAllNewPlantLCOE(instance, objMarket, indexYear):
-    ''' calculate the LCOE of each new candidata plant '''
+def calAllNewCHPPlantLCOE(instance, objMarket, indexYear):
+    ''' calculate the LCOE of new CHP candidata plant '''
     
-    # this algorithm apply for all dispatchable and non-dispatchable plant
+    for objZone in objMarket.lsZone:
+
+        for objNewCHPCandidate in objZone.lsNewCHPCandidate:
+    
+            if objNewCHPCandidate.Capacity > objNewCHPCandidate.fMaxAllowedNewBuildCapacity:
+                # reach capacity limit
+                objNewCHPCandidate.fLCOE = 9999         
+            else:
+
+                
+                
+                
+    
+    return
+
+
+
+def calAllNewPowerPlantLCOE(instance, objMarket, indexYear):
+    ''' calculate the LCOE of each new candidata plant (storage and CHP has removed)'''
+    
+    # this algorithm apply for all dispatchable and non-dispatchable power plant
     for objZone in objMarket.lsZone:
 
         for objNewProcessCandidate in objZone.lsNewProcessCandidate:
@@ -128,6 +158,10 @@ def calAllNewPlantLCOE(instance, objMarket, indexYear):
                 # reach capacity limit
                 objNewProcessCandidate.fLCOE = 9999
 
+            elif "CHP" in objNewProcessCandidate.sProcessName:
+                # exclude CHP
+                objNewProcessCandidate.fLCOE = 9999
+            
             elif objNewProcessCandidate.sOperationMode in ["Dispatch", "NonDispatch", "LimitDispatch"]:
 
                 if objNewProcessCandidate.sOperationMode == "NonDispatch":

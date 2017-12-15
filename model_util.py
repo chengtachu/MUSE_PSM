@@ -411,7 +411,7 @@ def processVarCost_Init(instance, objMarket, objZone, lsProcess):
         # sum up generation cost
         objProcess.fVariableGenCost_TS_YS = fRunningCost_TS_YS
 
-        # dispatchable plant (thermal generation, except some large hyro)
+        # dispatchable plant (thermal generation, including CHP)
         if objProcess.sOperationMode == "Dispatch":
 
             # get the carrier object
@@ -455,6 +455,54 @@ def processVarCost_Init(instance, objMarket, objZone, lsProcess):
             objProcess.fVariableGenCost_TS_YS = np.around(objProcess.fVariableGenCost_TS_YS, 4)
             
     return
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# update demand
+# ----------------------------------------------------------------------------------------------------------------------
+
+def updatePowerResidualDemand_Yearly(instance, objZone, indexYS):
+    ''' update power residual demand '''
+
+    objZone.fPowerResDemand_TS_YS[:,indexYS] = objZone.fPowerDemand_TS_YS[:,indexYS] - objZone.fPowerOutput_TS_YS[:,indexYS]
+    objZone.fPowerResDemand_TS_YS[ objZone.fPowerResDemand_TS_YS[:,indexYS] < 0 ,indexYS] = 0
+    # power import/export from other market already account in ZoneDemand_iter_Init
+    return
+
+
+def updatePowerResDemandWithTrans(objMarket, objZone, indexTS, indexYS):
+    ''' calculate residual demand considering cross-zone import/export '''
+    
+    # all connection import
+    fConnImport = 0
+    for index, objConnLine in enumerate(objMarket.lsTransmission): 
+        if objConnLine.To == objZone.sZone:
+            fConnImport += objConnLine.fTransLineOutput_TS_YS[indexTS, indexYS]
+
+    # all connection export
+    fConnExport = 0
+    for index, objConnLine in enumerate(objMarket.lsTransmission): 
+        if objConnLine.From == objZone.sZone:
+            fConnExport += objConnLine.fTransLineInput_TS_YS[indexTS, indexYS]
+
+    fResidualDemand = objZone.fPowerDemand_TS_YS[indexTS, indexYS] - objZone.fPowerOutput_TS_YS[indexTS, indexYS] - fConnImport + fConnExport
+
+    if fResidualDemand > 0.01:
+        objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = fResidualDemand
+    else :
+        objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = 0
+
+    return
+
+
+def updateHeatResidualDemand_Yearly(instance, objZone, indexYS):
+    ''' update heat residual demand '''
+
+    objZone.fHeatResDemand_TS_YS[:,indexYS] = objZone.fHeatDemand_TS_YS[:,indexYS] - objZone.fHeatOutput_TS_YS[:,indexYS]
+    objZone.fHeatResDemand_TS_YS[ objZone.fHeatResDemand_TS_YS[:,indexYS] < 0 ,indexYS] = 0
+
+    return
+
 
 
 # ----------------------------------------------------------------------------------------------------------------------

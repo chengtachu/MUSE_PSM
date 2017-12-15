@@ -52,6 +52,7 @@ class Market:
         
             # update ancillary service requirement
         
+        # remove over investment
         
         # save modelling result
         

@@ -170,7 +170,7 @@ def dispatch_nondispatchable(instance, objMarket, indexYS, sMode):
                     objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1 # generating
     
         # update power residual demand
-        model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
+        model_util.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
 
     return
 
@@ -200,7 +200,7 @@ def dispatch_limiteddispatchable(instance, objMarket, indexYS, sMode):
                     objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1 # generating
     
         # update power residual demand
-        model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
+        model_util.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
 
     return
 
@@ -260,7 +260,7 @@ def dispatch_CHP(instance, objMarket, indexYS, sMode):
                     objCHP.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 # commited
                 
         # update power residual demand
-        model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
+        model_util.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
                 
     return
 
@@ -287,7 +287,7 @@ def dispatch_HPS(instance, objMarket, indexYS, sMode):
                     objZone.fPowerOutput_TS_YS[:,indexYS] = objZone.fPowerOutput_TS_YS[:,indexYS] + objProcess.fHourlyPowerOutput_TS_YS[:,indexYS]
         
                     # update power residual demand
-                    model_util_gen.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
+                    model_util.updatePowerResidualDemand_Yearly(instance, objZone, indexYS)
  
                     # update operation status
                     objProcess.iOperatoinStatus_TS_YS[:, indexYS] = 1  # generating
@@ -322,7 +322,7 @@ def dispatch_oversupply(instance, objMarket, indexYS):
                             model_util_trans.calPathExport(objMarket, objZone, iPathIndex, fMaxInput, indexTS, indexYS)
                             # update the residual demand of the destination
                             objDestZone = objMarket.lsZone[objZone.lsConnectPath[iPathIndex].iDestZoneIndex]
-                            model_util_trans.updatePowerResDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
+                            model_util.updatePowerResDemandWithTrans(objMarket, objDestZone, indexTS, indexYS)
                         else:
                             bExportLoop = False
                 else:   
