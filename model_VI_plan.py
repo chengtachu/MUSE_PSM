@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import copy
 import numpy as np
 
 import model_util
@@ -61,38 +62,19 @@ def calInvestmentPlanning(objMarket, instance):
                     # calculate the residual heat in the year
                     model_util.updateHeatResidualDemand_Yearly(instance, objZone, indexYear)
                     
-                    # select the index with lowest demand (variable part will be served with heat plant)
-                    indexValleyDemand = np.argmin(objZone.fHeatResDemand_TS_YS[:, indexYear])
+                    # select the time-slice index with lowest demand (variable part will be served with heat plant)
+                    indexValleyDemandTS = np.argmin(objZone.fHeatResDemand_TS_YS[:, indexYear])
                     
                     # calculate the LCOE of all CHP plant (we assume the generaton only serve fixed part)
-                    calAllNewCHPPlantLCOE(instance, objMarket, iYearStep)
+                    calAllNewCHPPlantLCOE(instance, objMarket, indexValleyDemandTS, iYearStep)
 
                     # install the CHP plant with least LCOE
+                    installNewCHP(instance, objZone, indexYear)
                     
-                    
-
             #--------------------------------------------------------------
             # calculated the required renewable generation with target
-            # capacity planning for renewable (LCOE)
-            #bRenewableTargetPlanning = False
-            #while (not bRenewableTargetPlanning):
-            
-                # update available transfer capacity of all connection path
 
-                # calculate the LCOE of renewables
 
-                # install the new plant with lowest LCOE (add to objZone.listGenPlantFuture and objZone.listGenPlantOperTemp)
-
-                # re-dispatch
-
-                # check transmission line and update
-
-                # calculate all renewable generation level
-            
-                # biomass(?)
-            
-            
-            '''
             #--------------------------------------------------------------
             # install new plant to serve residual demand (include renewables)
             bFinishYearPlanning = False
@@ -104,18 +86,21 @@ def calInvestmentPlanning(objMarket, instance):
                 # calculate the LCOE of all plant
                 calAllNewPowerPlantLCOE(instance, objMarket, iYearStep)
 
-                # install the new plant with lowest LCOE (add to objZone.listGenPlantFuture and objZone.listGenPlantOperTemp)
-
+                # install the process with least LCOE
+                installNewProcess(instance, objMarket, indexYear)
 
                 # re-dispatch
+                model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
 
-
-                # check transmission line and update
-
+                # check and upgrade transmission capacity
+                model_util_trans.updateTransCapacity(instance, objMarket, indexYear)
 
                 # check all residual demand
-            '''
-                
+                                # check all residual demand
+                if checkAllDemandServed(instance, objMarket, indexYear):
+                    bFinishYearPlanning = True
+                    
+
             #--------------------------------------------------------------
             # install new plant to reach ancillary service requirement
                 
@@ -126,7 +111,7 @@ def calInvestmentPlanning(objMarket, instance):
 
 
 
-def calAllNewCHPPlantLCOE(instance, objMarket, indexYear):
+def calAllNewCHPPlantLCOE(instance, objMarket, indexValleyTS, indexYear):
     ''' calculate the LCOE of new CHP candidata plant '''
     
     for objZone in objMarket.lsZone:
@@ -137,11 +122,31 @@ def calAllNewCHPPlantLCOE(instance, objMarket, indexYear):
                 # reach capacity limit
                 objNewCHPCandidate.fLCOE = 9999         
             else:
-
-                
-                
-                
+                #-------------------------------------------------------
+                # annual generation MWh
+                fMaxGeneration = objNewCHPCandidate.fDeratedCapacity / objNewCHPCandidate.fCHPPowerToHeatRate # MW
+                if fMaxGeneration > objZone.fHeatResDemand_TS_YS[indexValleyTS, indexYear]:
+                    # partial generation
+                    fMaxGeneration = objZone.fHeatResDemand_TS_YS[indexValleyTS, indexYear]
+                    
+                fPlantTotalGeneration = 0   # MWh
+                for objTimeSlice in instance.lsTimeSlice:
+                    fPlantTotalGeneration += fMaxGeneration * objTimeSlice.iRepHoursInYear
+ 
+                #-------------------------------------------------------
+                # annual fixed investment (MillionUSD / year)
+                fNewPlantCost = objNewCHPCandidate.fAnnualFixedCost
+                # total generation cost = total generation (MWh) *  unit generation cost (USD/kWh) / 1000 = M.USD
+                fNewPlantCost += fPlantTotalGeneration * objNewCHPCandidate.fVariableGenCost_TS_YS[indexYear] / 1000        
     
+                # LCOE = M.USD / MWh * 1000 = USD/kWh
+                if fPlantTotalGeneration < 1:
+                    fLCOE = 9999
+                else:
+                    fLCOE = fNewPlantCost / fPlantTotalGeneration * 1000
+                    
+                objNewCHPCandidate.fLCOE = fLCOE
+                
     return
 
 
@@ -267,5 +272,89 @@ def _calHPSOperationLCOE(instance, objMarket, objZone, objProcess, indexYear):
 
 
 
+def installNewCHP(instance, objZone, indexYear):
+    ''' install new CHP '''
+    
+    iPlantIndex = -1
+    fLowestLCOE = 9999
+    for indexPlant, objNewPlantCandidate in enumerate(objZone.lsNewCHPCandidate):
+        if objNewPlantCandidate.fLCOE < fLowestLCOE:
+            iPlantIndex = indexPlant
+            fLowestLCOE = objNewPlantCandidate.fLCOE
+
+    if iPlantIndex != -1:
+        installNewPlant(instance, objZone, objZone.lsNewCHPCandidate[indexPlant], indexYear)
+        return True
+    else:
+        return False
+
+
+
+def installNewProcess(instance, objMarket, indexYear):
+    ''' install new Process '''
+    
+    iLCOEZoneIdx = 0
+    iPlantIndex = -1
+    fLowestLCOE = 9999
+    for iZoneIndex, objZone in enumerate(objMarket.lsZone):
+        for indexPlant, objNewPlantCandidate in enumerate(objZone.lsNewProcessCandidate):
+            if objNewPlantCandidate.fLCOE < fLowestLCOE:
+                iLCOEZoneIdx = iZoneIndex
+                iPlantIndex = indexPlant
+                fLowestLCOE = objNewPlantCandidate.fLCOE
+
+    if iPlantIndex != -1:
+        objZone = objMarket.lsZone[iLCOEZoneIdx]
+        installNewPlant(instance, objZone, objZone.lsNewProcessCandidate[iPlantIndex], indexYear)
+        return True
+    else:
+        return False
+
+
+
+def installNewPlant(instance, objZone, objCandidate, indexYear):
+    ''' install the new plant '''
+
+    # change fMaxAllowedNewBuildCapacity
+    objCandidate.fMaxAllowedNewBuildCapacity -= objCandidate.Capacity
+
+    # copy the plant to objZone.lsProcessPlanned and objZone.lsProcessOperTemp. Combine the plants with same tech and commit time.
+    bCombinExist = False
+    for indexP, objPlant in enumerate(objZone.lsProcessPlanned):
+        if objPlant.sGenTechID == objCandidate.sGenTechID and objPlant.CommitTime == objCandidate.CommitTime:
+            # update plant in objZone.lsProcessPlanned
+            objPlant.Capacity += objCandidate.Capacity
+            objPlant.fAnnualCapex += objCandidate.fAnnualCapex
+            objPlant.fAnnualFixedCost += objCandidate.fAnnualFixedCost
+            objPlant.fDeratedCapacity += objCandidate.fDeratedCapacity
+            # update plant in objZone.lsProcessOperTemp
+            for indexPlantTemp, objPlantTemp in enumerate(objZone.lsProcessOperTemp):
+                if objPlantTemp.sProcessName == objCandidate.sProcessName and objPlantTemp.CommitTime == objCandidate.CommitTime:
+                    objPlantTemp.Capacity += objCandidate.Capacity
+                    objPlantTemp.fAnnualCapex += objCandidate.fAnnualCapex
+                    objPlantTemp.fAnnualFixedCost += objCandidate.fAnnualFixedCost
+                    objPlantTemp.fDeratedCapacity += objCandidate.fDeratedCapacity
+                    break
+            bCombinExist = True
+            break
+    if bCombinExist is False:
+        objZone.lsProcessPlanned.append(copy.deepcopy(objCandidate))
+        objZone.lsProcessOperTemp.append(copy.deepcopy(objCandidate))
+        
+    return
+    
+    
+
+def checkAllDemandServed(instance, objMarket, indexYear):
+    ''' check all residual demand '''
+    
+    bAllDemandServed = True
+    for objZone in objMarket.lsZone:
+        for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+            if objZone.fPowerResDemand_TS_YS[indexTS, indexYear] > 1:
+                bAllDemandServed = False
+                break
+
+    return bAllDemandServed
 
 

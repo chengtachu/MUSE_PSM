@@ -105,7 +105,7 @@ class ZoneProcess(ProcessDef):
             # fDeratedCapacity      (MW)
             # fAnnualCapex          (MillionUSD / year)
             # fAnnualFixedCost      (MillionUSD / year)
-            # fCHPPowerRatio    
+            # fCHPPowerToHeatRate    
                     
         ''' ---- variables ---- '''
         # fVariableGenCost_TS_YS

@@ -227,8 +227,8 @@ def dispatch_CHP(instance, objMarket, indexYS, sMode):
 
             for indProcess, objProcess in enumerate(objZone.lsCHPProcessIndex):
                 objCHP = lsProcess[objProcess.indexProcess]
-                fHeatOutput = objCHP.fDeratedCapacity * (1-objCHP.fCHPPowerRatio)
-                fPowerOutput = objCHP.fDeratedCapacity * objCHP.fCHPPowerRatio
+                fHeatOutput = objCHP.fDeratedCapacity / objCHP.fCHPPowerToHeatRate
+                fPowerOutput = objCHP.fDeratedCapacity
                 
                 fHeatResDemand = objZone.fHeatResDemand_TS_YS[indexTS, indexYS]
                   

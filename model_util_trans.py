@@ -298,6 +298,42 @@ def updateConnectionPathAvailCapacity(instance, objMarket, indexYS):
 
 
 
+def updateTransCapacity(instance, objMarket, indexYear):
+    ''' check and upgrade transmission capacity '''
+    
+    iNewAddCapacity = 100 # default new update capacity
 
+    for index, objConnLine in enumerate(objMarket.lsTransmission):
+        sFromZone = objConnLine.From
+        sToZone = objConnLine.To
+        for objZone in objMarket.lsZone:
+            if objZone.sZone == sFromZone:
+                objSourceZone = objZone
+            elif objZone.sZone == sToZone:
+                objToZone = objZone
+
+        iFullLoadCount = 0 
+        for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+            if objConnLine.fTransLineInput_TS_YS[indexTS, indexYear] == objConnLine.fTransAccCapacity_YS[indexYear]:
+                iFullLoadCount = iFullLoadCount + 1
+
+        # full load in half of the timeslice
+        if iFullLoadCount > len(instance.lsTimeSlice) / 2:
+            fReducedCost = 0
+            for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+                fNodalPriceDiff = 0
+                if objToZone.aNodalPrice_TS_YR[indexTS,indexYear] > objSourceZone.aNodalPrice_TS_YR[indexTS,indexYear]:
+                    fNodalPriceDiff = abs(objToZone.fNodalPrice_TS_YS[indexTS,indexYear] - objSourceZone.fNodalPrice_TS_YS[indexTS,indexYear])
+                # potential cost saved  ( MW * hour *  USD/kWh / 1000 = M.USD)
+                fReducedCost += iNewAddCapacity * objTimeSlice.iRepHoursInYear * fNodalPriceDiff * (1- objConnLine.FlowLossRate/100) / 1000 
+
+            if fReducedCost > (objConnLine.fYearInvest * iNewAddCapacity):
+                # profitable, add to new build and accumulated capacity
+                objConnLine.fTransNewBuild_YS[indexYear] += iNewAddCapacity
+                for indexYS, sYearStep in enumerate(instance.iAllYearSteps_YS):
+                    if indexYS >= indexYear:
+                        objConnLine.fTransAccCapacity_YR[indexYS] += iNewAddCapacity
+
+    return
 
 

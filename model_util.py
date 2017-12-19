@@ -222,7 +222,7 @@ def ZoneProcess_Init(lsProcess):
     for objProcess in lsProcess:
         if "CHP" in objProcess.sProcessName:
             # we assume all CHP process is back-pressure for now
-            objProcess.fCHPPowerRatio = objProcess.EffPowerBP / (objProcess.EffPowerBP + objProcess.EffHeatBP)
+            objProcess.fCHPPowerToHeatRate = objProcess.EffPowerBP / objProcess.EffHeatBP
                 
     return
 

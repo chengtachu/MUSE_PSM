@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import model_util
 import model_util_trans
 
 def calNonDispatchGeneration(instance, objZone, objProcess, indexYS):
