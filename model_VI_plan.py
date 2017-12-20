@@ -58,36 +58,53 @@ def calInvestmentPlanning(objMarket, instance):
             for objZone in objMarket.lsZone:
                 bFinishCHPPlanning = False
                 while (not bFinishCHPPlanning):
-                
+                    
+                    # dispatch CHP generation
+                    model_VI_dispatch.dispatch_Init(objMarket, indexYear)
+                    model_VI_dispatch.dispatch_ProcessIndexListInit(instance, objMarket, indexYear, "PlanMode")
+                    model_VI_dispatch.dispatch_CHP(instance, objMarket, indexYear, "PlanMode")
+                    
                     # calculate the residual heat in the year
-                    model_util.updateHeatResidualDemand_Yearly(instance, objZone, indexYear)
+                    # model_util.updateHeatResidualDemand_Yearly(instance, objZone, indexYear)
                     
                     # select the time-slice index with lowest demand (variable part will be served with heat plant)
                     indexValleyDemandTS = np.argmin(objZone.fHeatResDemand_TS_YS[:, indexYear])
                     
-                    # calculate the LCOE of all CHP plant (we assume the generaton only serve fixed part)
-                    calAllNewCHPPlantLCOE(instance, objMarket, indexValleyDemandTS, iYearStep)
-
-                    # install the CHP plant with least LCOE
-                    installNewCHP(instance, objZone, indexYear)
+                    if objZone.fHeatResDemand_TS_YS[indexValleyDemandTS, indexYear] > 0:
+                        
+                        # calculate the LCOE of all CHP plant (we assume the generaton only serve fixed part)
+                        calAllNewCHPPlantLCOE(instance, objZone, indexValleyDemandTS, indexYear)    
+                        # install the CHP plant with least LCOE
+                        installNewCHP(instance, objZone, indexYear)
+                    else:
+                        bFinishCHPPlanning = True
                     
             #--------------------------------------------------------------
             # calculated the required renewable generation with target
 
+            # re-dispatch for planning (after CHP planning)
+            model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
 
             #--------------------------------------------------------------
             # install new plant to serve residual demand (include renewables)
             bFinishYearPlanning = False
             while (not bFinishYearPlanning):
             
+                fPreInstallSystemResDemand = 0
+                for objZone in objMarket.lsZone:
+                    fPreInstallSystemResDemand += np.average(objZone.fPowerResDemand_TS_YS[:,indexYear])
+                
                 # update available transfer capacity of all connection path
-                model_util_trans.updateConnectionPathAvailCapacity(instance, objMarket, iYearStep)
+                model_util_trans.updateConnectionPathAvailCapacity(instance, objMarket, indexYear)
                 
                 # calculate the LCOE of all plant
-                calAllNewPowerPlantLCOE(instance, objMarket, iYearStep)
+                calAllNewPowerPlantLCOE(instance, objMarket, indexYear)
+
+                for objZone in objMarket.lsZone:
+                    print("resdemand", objZone.sZone, np.average(objZone.fPowerResDemand_TS_YS[:,indexYear]))
 
                 # install the process with least LCOE
-                installNewProcess(instance, objMarket, indexYear)
+                iZoneIdx, iProcessIdx = installNewProcess(instance, objMarket, indexYear)
 
                 # re-dispatch
                 model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
@@ -96,10 +113,20 @@ def calInvestmentPlanning(objMarket, instance):
                 model_util_trans.updateTransCapacity(instance, objMarket, indexYear)
 
                 # check all residual demand
-                                # check all residual demand
                 if checkAllDemandServed(instance, objMarket, indexYear):
                     bFinishYearPlanning = True
                     
+                # remove the candidate from the list if it doesnt reduce residual demand (necessary for the algorithm)
+                fPostInstallSystemResDemand = 0
+                for objZone in objMarket.lsZone:
+                    fPostInstallSystemResDemand += np.average(objZone.fPowerResDemand_TS_YS[:,indexYear])
+                if fPostInstallSystemResDemand + 1 >= fPreInstallSystemResDemand:
+                    objMarket.lsZone[iZoneIdx].lsNewProcessCandidate[iProcessIdx].fMaxAllowedNewBuildCapacity = 0
+                    
+                for objZone in objMarket.lsZone:
+                    print("resdemand", objZone.sZone, np.average(objZone.fPowerResDemand_TS_YS[:,indexYear]))
+                    
+                print("")
 
             #--------------------------------------------------------------
             # install new plant to reach ancillary service requirement
@@ -111,41 +138,38 @@ def calInvestmentPlanning(objMarket, instance):
 
 
 
-def calAllNewCHPPlantLCOE(instance, objMarket, indexValleyTS, indexYear):
+def calAllNewCHPPlantLCOE(instance, objZone, indexValleyTS, indexYear):
     ''' calculate the LCOE of new CHP candidata plant '''
     
-    for objZone in objMarket.lsZone:
+    for objNewCHPCandidate in objZone.lsNewCHPCandidate:
 
-        for objNewCHPCandidate in objZone.lsNewCHPCandidate:
-    
-            if objNewCHPCandidate.Capacity > objNewCHPCandidate.fMaxAllowedNewBuildCapacity:
-                # reach capacity limit
-                objNewCHPCandidate.fLCOE = 9999         
-            else:
-                #-------------------------------------------------------
-                # annual generation MWh
-                fMaxGeneration = objNewCHPCandidate.fDeratedCapacity / objNewCHPCandidate.fCHPPowerToHeatRate # MW
-                if fMaxGeneration > objZone.fHeatResDemand_TS_YS[indexValleyTS, indexYear]:
-                    # partial generation
-                    fMaxGeneration = objZone.fHeatResDemand_TS_YS[indexValleyTS, indexYear]
-                    
-                fPlantTotalGeneration = 0   # MWh
-                for objTimeSlice in instance.lsTimeSlice:
-                    fPlantTotalGeneration += fMaxGeneration * objTimeSlice.iRepHoursInYear
+        if objNewCHPCandidate.Capacity > objNewCHPCandidate.fMaxAllowedNewBuildCapacity:
+            # reach capacity limit
+            objNewCHPCandidate.fLCOE = 9999         
+        else:
+            #-------------------------------------------------------
+            # annual generation MWh
+            fMaxGeneration = objNewCHPCandidate.fDeratedCapacity / objNewCHPCandidate.fCHPPowerToHeatRate # MW
+            if fMaxGeneration > objZone.fHeatResDemand_TS_YS[indexValleyTS, indexYear]:
+                # partial generation
+                fMaxGeneration = objZone.fHeatResDemand_TS_YS[indexValleyTS, indexYear]
+                
+            fPlantTotalGeneration = np.zeros(len(instance.lsTimeSlice))   # MWh
+            fPlantTotalGeneration[:] = fMaxGeneration * np.fromiter((objTimeSlice.iRepHoursInYear for objTimeSlice in instance.lsTimeSlice), float)
  
-                #-------------------------------------------------------
-                # annual fixed investment (MillionUSD / year)
-                fNewPlantCost = objNewCHPCandidate.fAnnualFixedCost
-                # total generation cost = total generation (MWh) *  unit generation cost (USD/kWh) / 1000 = M.USD
-                fNewPlantCost += fPlantTotalGeneration * objNewCHPCandidate.fVariableGenCost_TS_YS[indexYear] / 1000        
-    
-                # LCOE = M.USD / MWh * 1000 = USD/kWh
-                if fPlantTotalGeneration < 1:
-                    fLCOE = 9999
-                else:
-                    fLCOE = fNewPlantCost / fPlantTotalGeneration * 1000
-                    
-                objNewCHPCandidate.fLCOE = fLCOE
+            #-------------------------------------------------------
+            # annual fixed investment (MillionUSD / year)
+            fNewPlantCost = objNewCHPCandidate.fAnnualFixedCost
+            # total generation cost = total generation (MWh) *  unit generation cost (USD/kWh) / 1000 = M.USD
+            fNewPlantCost += np.sum(fPlantTotalGeneration[:] * objNewCHPCandidate.fVariableGenCost_TS_YS[:,indexYear]) / 1000        
+
+            # LCOE = M.USD / MWh * 1000 = USD/kWh
+            if np.sum(fPlantTotalGeneration[:]) < 1:
+                fLCOE = 9999
+            else:
+                fLCOE = fNewPlantCost / np.sum(fPlantTotalGeneration[:]) * 1000
+                
+            objNewCHPCandidate.fLCOE = fLCOE
                 
     return
 
@@ -174,47 +198,49 @@ def calAllNewPowerPlantLCOE(instance, objMarket, indexYear):
                 elif objNewProcessCandidate.sOperationMode == "LimitDispatch":
                     model_util_gen.calLimitedDispatchGeneration(instance, objZone, objNewProcessCandidate, indexYear)
                     
-                fPlantTotalGeneration = 0   # MW
+                fPlantTotalGeneration = np.zeros(len(instance.lsTimeSlice))   # MWh
                 for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice): 
 
-                    fMaxGeneration = objNewProcessCandidate.fDeratedCapacity  # MW
+                    fMaxGeneration = objNewProcessCandidate.fDeratedCapacity  # MW available dispatch volulme
                     if objNewProcessCandidate.sOperationMode in ["NonDispatch","LimitDispatch"]:
                         fMaxGeneration = objNewProcessCandidate.fHourlyPowerOutput_TS_YS[indexTS, indexYear]
 
                     if fMaxGeneration <= objZone.fPowerResDemand_TS_YS[indexTS, indexYear]:
                         # full dispatch
-                        fPlantTotalGeneration += fMaxGeneration * objTimeSlice.iRepHoursInYear    # MWh
+                        fPlantTotalGeneration[indexTS] += fMaxGeneration * objTimeSlice.iRepHoursInYear    # MWh
                     else:
                         # partially local dispatch
-                        fPlantTotalGeneration += objZone.fPowerResDemand_TS_YS[indexTS, indexYear] * objTimeSlice.iRepHoursInYear
+                        fPlantTotalGeneration[indexTS] += objZone.fPowerResDemand_TS_YS[indexTS, indexYear] * objTimeSlice.iRepHoursInYear
                         fMaxGeneration = fMaxGeneration - objZone.fPowerResDemand_TS_YS[indexTS, indexYear]
 
                         # calculate max export to all neighbor subregion
                         fMaxExportTS = 0
                         for iPathIndex, objConnPath in enumerate(objZone.lsConnectPath): 
                             if objConnPath.fAvailTransCapacity_TS[indexTS] > 0:
-                                fDestSubregionNodalPrice = instance.lsZone[objConnPath.iDestZoneIndex].fNodalPrice_TS_YS[indexTS, indexYear]
-                                if fDestSubregionNodalPrice > objNewProcessCandidate.fVariableGenCost_TS_YS[indexYear]:
+                                fDestZoneNodalPrice = objMarket.lsZone[objConnPath.iDestZoneIndex].fNodalPrice_TS_YS[indexTS, indexYear]
+                                if fDestZoneNodalPrice > objNewProcessCandidate.fVariableGenCost_TS_YS[indexTS, indexYear]:
                                     fMaxExportTS += objConnPath.fAvailTransCapacity_TS[indexTS]
 
                         fExport = min(fMaxExportTS, fMaxGeneration)
-                        fPlantTotalGeneration += fExport * objTimeSlice.iRepHoursInYear    # MWh
+                        fPlantTotalGeneration[indexTS] += fExport * objTimeSlice.iRepHoursInYear    # MWh
+                        fMaxGeneration = fMaxGeneration - fExport
                         
+                        # dispatch the rest part if the generation cost is lower than nodal price
                         if fMaxGeneration > 0:
-                            if objNewProcessCandidate.fVariableGenCost_TS_YS[indexYear] < objZone.fNodalPrice_TS_YS[indexTS, indexYear]:
-                                fPlantTotalGeneration += fMaxGeneration * objTimeSlice.iRepHoursInYear    # MWh
+                            if objNewProcessCandidate.fVariableGenCost_TS_YS[indexTS, indexYear] < objZone.fNodalPrice_TS_YS[indexTS, indexYear]:
+                                fPlantTotalGeneration[indexTS] += fMaxGeneration * objTimeSlice.iRepHoursInYear    # MWh
                                 
                 #-------------------------------------------------------
                 # annual fixed investment (MillionUSD / year)
                 fNewPlantCost = objNewProcessCandidate.fAnnualFixedCost
                 # total generation cost = total generation (MWh) *  unit generation cost (USD/kWh) / 1000 = M.USD
-                fNewPlantCost += fPlantTotalGeneration * objNewProcessCandidate.fVariableGenCost_TS_YS[indexYear] / 1000
+                fNewPlantCost += np.sum(fPlantTotalGeneration[:] * objNewProcessCandidate.fVariableGenCost_TS_YS[:,indexYear]) / 1000 
 
                 # LCOE = M.USD / MWh * 1000 = USD/kWh
-                if fPlantTotalGeneration < 1:
+                if np.sum(fPlantTotalGeneration[:]) < 1:
                     fLCOE = 9999
                 else:
-                    fLCOE = fNewPlantCost / fPlantTotalGeneration * 1000
+                    fLCOE = fNewPlantCost / np.sum(fPlantTotalGeneration[:]) * 1000
 
                     # take into account the back-up cost of non-dispatchable plant
                     if objNewProcessCandidate.sOperationMode == "NonDispatch":
@@ -234,7 +260,7 @@ def calAllNewPowerPlantLCOE(instance, objMarket, indexYear):
                             # USD/KW * MW * 1000 = USD
                             fBackUpCost = fBackUpCost * (-fPositiveDisparity) * 1000
                             # USD / MWh / 1000 = USD/kWh
-                            fLCOE += fBackUpCost / fPlantTotalGeneration / 1000
+                            fLCOE += fBackUpCost / np.sum(fPlantTotalGeneration[:]) / 1000
 
                 objNewProcessCandidate.fLCOE = fLCOE
 
@@ -294,21 +320,24 @@ def installNewProcess(instance, objMarket, indexYear):
     ''' install new Process '''
     
     iLCOEZoneIdx = 0
-    iPlantIndex = -1
+    iProcessIndex = -1
     fLowestLCOE = 9999
     for iZoneIndex, objZone in enumerate(objMarket.lsZone):
         for indexPlant, objNewPlantCandidate in enumerate(objZone.lsNewProcessCandidate):
             if objNewPlantCandidate.fLCOE < fLowestLCOE:
                 iLCOEZoneIdx = iZoneIndex
-                iPlantIndex = indexPlant
+                iProcessIndex = indexPlant
                 fLowestLCOE = objNewPlantCandidate.fLCOE
 
-    if iPlantIndex != -1:
+    if iProcessIndex != -1:
         objZone = objMarket.lsZone[iLCOEZoneIdx]
-        installNewPlant(instance, objZone, objZone.lsNewProcessCandidate[iPlantIndex], indexYear)
-        return True
-    else:
-        return False
+        
+        print("install", objZone.sZone, objZone.lsNewProcessCandidate[iProcessIndex].sProcessName, objZone.lsNewProcessCandidate[iProcessIndex].fLCOE, \
+              objZone.lsNewProcessCandidate[iProcessIndex].Capacity)
+        
+        installNewPlant(instance, objZone, objZone.lsNewProcessCandidate[iProcessIndex], indexYear)
+        
+    return iLCOEZoneIdx, iProcessIndex
 
 
 
@@ -321,7 +350,7 @@ def installNewPlant(instance, objZone, objCandidate, indexYear):
     # copy the plant to objZone.lsProcessPlanned and objZone.lsProcessOperTemp. Combine the plants with same tech and commit time.
     bCombinExist = False
     for indexP, objPlant in enumerate(objZone.lsProcessPlanned):
-        if objPlant.sGenTechID == objCandidate.sGenTechID and objPlant.CommitTime == objCandidate.CommitTime:
+        if objPlant.sProcessName == objCandidate.sProcessName and objPlant.CommitTime == objCandidate.CommitTime:
             # update plant in objZone.lsProcessPlanned
             objPlant.Capacity += objCandidate.Capacity
             objPlant.fAnnualCapex += objCandidate.fAnnualCapex
@@ -337,6 +366,7 @@ def installNewPlant(instance, objZone, objCandidate, indexYear):
                     break
             bCombinExist = True
             break
+        
     if bCombinExist is False:
         objZone.lsProcessPlanned.append(copy.deepcopy(objCandidate))
         objZone.lsProcessOperTemp.append(copy.deepcopy(objCandidate))

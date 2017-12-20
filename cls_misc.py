@@ -82,7 +82,7 @@ class MarketDispatchProcess(ProcessDef):
         self.indexZone = kwargs["indexZone"]
         self.indexProcess = kwargs["indexProcess"]
         self.sProcessName = kwargs["sProcessName"]
-        self.fRampRatePerM = kwargs["fRampRatePerM"]
+        self.RampRatePerM = kwargs["RampRatePerM"]
         
         ### simulation parameters
         self.fVariableGenCost_TS = kwargs["fVariableGenCost_TS"]    # USD/kWh

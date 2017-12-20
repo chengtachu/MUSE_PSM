@@ -322,7 +322,7 @@ def updateTransCapacity(instance, objMarket, indexYear):
             fReducedCost = 0
             for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
                 fNodalPriceDiff = 0
-                if objToZone.aNodalPrice_TS_YR[indexTS,indexYear] > objSourceZone.aNodalPrice_TS_YR[indexTS,indexYear]:
+                if objToZone.fNodalPrice_TS_YS[indexTS,indexYear] > objSourceZone.fNodalPrice_TS_YS[indexTS,indexYear]:
                     fNodalPriceDiff = abs(objToZone.fNodalPrice_TS_YS[indexTS,indexYear] - objSourceZone.fNodalPrice_TS_YS[indexTS,indexYear])
                 # potential cost saved  ( MW * hour *  USD/kWh / 1000 = M.USD)
                 fReducedCost += iNewAddCapacity * objTimeSlice.iRepHoursInYear * fNodalPriceDiff * (1- objConnLine.FlowLossRate/100) / 1000 
@@ -332,7 +332,7 @@ def updateTransCapacity(instance, objMarket, indexYear):
                 objConnLine.fTransNewBuild_YS[indexYear] += iNewAddCapacity
                 for indexYS, sYearStep in enumerate(instance.iAllYearSteps_YS):
                     if indexYS >= indexYear:
-                        objConnLine.fTransAccCapacity_YR[indexYS] += iNewAddCapacity
+                        objConnLine.fTransAccCapacity_YS[indexYS] += iNewAddCapacity
 
     return
 

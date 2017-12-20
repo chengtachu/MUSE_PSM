@@ -612,6 +612,7 @@ def getNewProcessCandidate(instance, objZone, indexYS):
         objNewProcess.OwnUseRate = objNewProcessAssump.OwnUseRate
         objNewProcess.Availability = objNewProcessAssump.Availability
         objNewProcess.MinLoadRate = objNewProcessAssump.MinLoadRate
+        objNewProcess.RampRatePerM = objNewProcessAssump.RampRatePerM
         objNewProcess.CCSCaptureRate = objNewProcessAssump.CCSCaptureRate
         objNewProcess.DayStorageOutput = objNewProcessAssump.DayStorageOutput
         objNewProcess.EffPowerCM = objNewProcessAssump.fEffPowerCM_YS[indexYS]

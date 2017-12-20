@@ -15,11 +15,8 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     # reset variables
     dispatch_Init(objMarket, indexYearStep)
 
-    # copy key information to market process list objMarket.lsDispatchProcessIndex
-    objMarket.lsDispatchProcessIndex = list()
-    for indexZone, objZone in enumerate(objMarket.lsZone):
-        objZone.lsCHPProcessIndex = list()
-        stackMarketDispatchProcess(instance, objMarket, indexZone, objZone.lsProcess, indexYearStep)
+    # copy key information to market process list objMarket.lsDispatchProcessIndex and objZone.lsCHPProcessIndex
+    dispatch_ProcessIndexListInit(instance, objMarket, indexYearStep, "ExecMode")
 
     # Non-dispatchable generation (all time-slice)
     dispatch_nondispatchable(instance, objMarket, indexYearStep, "ExecMode")    
@@ -58,12 +55,9 @@ def dispatch_Plan(instance, objMarket, indexYearStep):
     # reset variables
     dispatch_Init(objMarket, indexYearStep)
     
-    # copy key information to market process list objMarket.lsDispatchProcessIndex
-    objMarket.lsDispatchProcessIndex = list()
-    for indexZone, objZone in enumerate(objMarket.lsZone):
-        objZone.lsCHPProcessIndex = list()
-        stackMarketDispatchProcess(instance, objMarket, indexZone, objZone.lsProcessOperTemp, indexYearStep)
-    
+    # copy key information to market process list objMarket.lsDispatchProcessIndex and objZone.lsCHPProcessIndex
+    dispatch_ProcessIndexListInit(instance, objMarket, indexYearStep, "PlanMode")
+
     # Non-dispatchable generation (all time-slice)
     dispatch_nondispatchable(instance, objMarket, indexYearStep, "PlanMode")    
 
@@ -117,33 +111,41 @@ def dispatch_Init(objMarket, indexYearStep):
     return
 
 
-def stackMarketDispatchProcess(instance, objMarket, indexZone, lsProcess, indexYS):
+
+def dispatch_ProcessIndexListInit(instance, objMarket, indexYS, sMode):
     ''' stack up dispatchable process  '''
-    
-    objZone = objMarket.lsZone[indexZone]
-    
-    # power process to stack on market stack list
-    sYearStep = instance.iAllYearSteps_YS[indexYS]
-    for indexProcess, objProcess in enumerate(lsProcess):
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-            if objProcess.sOperationMode == "Dispatch" and "CHP" not in objProcess.sProcessName:
-                objMarket.lsDispatchProcessIndex.append(cls_misc.MarketDispatchProcess(  \
-                    indexZone=indexZone, indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
-                    fRampRatePerM=objProcess.RampRatePerM, fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
 
-    for objProcess in objMarket.lsDispatchProcessIndex:
-        objProcess.fDAOfferPrice_TS = np.zeros( len(instance.lsTimeSlice) )
-    
-    # heat process to stack on zone stack list
-    for indexProcess, objProcess in enumerate(lsProcess):
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-            if "CHP" in objProcess.sProcessName:
-                objZone.lsCHPProcessIndex.append(cls_misc.ZoneCHPProcess(  \
-                    indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
-                    fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
+    objMarket.lsDispatchProcessIndex = list()
+    for indexZone, objZone in enumerate(objMarket.lsZone):
+        objZone.lsCHPProcessIndex = list()
         
-    return
+        if sMode == "ExecMode":
+            lsProcess = objZone.lsProcess
+        elif sMode == "PlanMode":
+            lsProcess = objZone.lsProcessOperTemp
 
+        # power process to stack on market stack list
+        sYearStep = instance.iAllYearSteps_YS[indexYS]
+        for indexProcess, objProcess in enumerate(lsProcess):
+            if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+                if objProcess.sOperationMode == "Dispatch" and "CHP" not in objProcess.sProcessName:
+                    objMarket.lsDispatchProcessIndex.append(cls_misc.MarketDispatchProcess(  \
+                        indexZone=indexZone, indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
+                        RampRatePerM=objProcess.RampRatePerM, fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
+    
+        for objProcess in objMarket.lsDispatchProcessIndex:
+            objProcess.fDAOfferPrice_TS = np.zeros( len(instance.lsTimeSlice) )
+        
+        # heat process to stack on zone stack list
+        for indexProcess, objProcess in enumerate(lsProcess):
+            if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+                if "CHP" in objProcess.sProcessName:
+                    objZone.lsCHPProcessIndex.append(cls_misc.ZoneCHPProcess(  \
+                        indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
+                        fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
+    
+    return
+    
 
 
 def dispatch_nondispatchable(instance, objMarket, indexYS, sMode):
