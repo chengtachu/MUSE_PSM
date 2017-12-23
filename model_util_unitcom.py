@@ -3,6 +3,7 @@
 import copy
 import numpy as np
 
+import cls_misc
 import model_util_gen
 
 def unitCommitment(instance, objMarket, indexYS, sMode):
@@ -20,7 +21,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
         # get the time-slice with highest residual demand
         fDailyHighestDemand = 0
         iHighestTSIndex = 0
-        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+        for objDayTS in objDay.lsDiurnalTS:
             fMarketDemand = fMarketTotalResDemand_TS_YS[objDayTS.iTimeSliceIndex, indexYS]
             if fMarketDemand > fDailyHighestDemand:
                 fDailyHighestDemand = fMarketDemand
@@ -36,7 +37,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
         objMarketDup.lsDispatchProcessIndex = sorted(objMarketDup.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
                                                   lsDispatchProcessIndex.fVariableGenCost_TS[iHighestTSIndex])
         
-        # dispatch the time-slice with hightst residual demand (this step make sure a lower bound of reliability requirement)
+        # dispatch the time-slice with highest residual demand (this step make sure a lower bound of reliability requirement)
         for objProcessIndex in objMarketDup.lsDispatchProcessIndex:
             objDispatchZone = objMarketDup.lsZone[objProcessIndex.indexZone]
             
@@ -47,7 +48,27 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                 
             objDispatchProcess = lsProcess[objProcessIndex.indexProcess]
             model_util_gen.dispatch_thermalUnit_TS(instance, objMarketDup, objDispatchZone, objDispatchProcess, iHighestTSIndex, indexYS)
-    
+
+        # restructure lsDispatchProcessIndex (to include all ramp up facilities)
+        objMarketDup.lsDispatchProcessIndex = list()
+        for indexZone, objZone in enumerate(objMarketDup.lsZone):
+        
+            if sMode == "ExecMode":
+                lsProcess = objZone.lsProcess
+            elif sMode == "PlanMode":
+                lsProcess = objZone.lsProcessOperTemp
+                
+            sYearStep = instance.iAllYearSteps_YS[indexYS]
+            for indexProcess, objProcess in enumerate(lsProcess):
+                if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+                    objMarketDup.lsDispatchProcessIndex.append(cls_misc.MarketDispatchProcess(  \
+                        indexZone=indexZone, indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
+                        RampRatePerM=objProcess.RampRatePerM, fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
+
+        # sort system ramp up ability
+        objMarketDup.lsDispatchProcessIndex = sorted(objMarketDup.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
+                                                  lsDispatchProcessIndex.RampRatePerM, reverse=True) 
+        
         # allocate ancillary service among commited units (spinning reserve - limited ramp range)
         for objZone in objMarketDup.lsZone:
             
@@ -56,16 +77,12 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
             elif sMode == "PlanMode":  
                 lsProcess = objZone.lsProcessOperTemp
             
-            lsProcessDup = copy.deepcopy(lsProcess)
-            # sort the zone process by ramp up ability
-            lsProcessDup = sorted(lsProcessDup, key=lambda lsProcessDup: lsProcessDup.RampRatePerM, reverse=True)
-            
             # allocate regulation capacity of the zone, and calculate deficit
-            allocateRegulationCapacity_spin(instance, objMarketDup, objZone, lsProcessDup, iHighestTSIndex, indexYS)
+            allocateRegulationCapacity_spin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
             # allocate 10 min operational reserve capacity of the zone, and calculate deficit
-            allocate10MinReserve_spin(instance, objMarketDup, objZone, lsProcessDup, iHighestTSIndex, indexYS)
+            allocate10MinReserve_spin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
             # allocate 30 min operational reserve capacity of the zone, and calculate deficit
-            allocate30MinReserve_spin(instance, objMarketDup, objZone, lsProcessDup, iHighestTSIndex, indexYS)
+            allocate30MinReserve_spin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
             
         # commit more units if there is unserved ancillary service (non-spinning reserve)
         for objZone in objMarketDup.lsZone:
@@ -74,33 +91,16 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                 lsProcess = objZone.lsProcess
             elif sMode == "PlanMode":  
                 lsProcess = objZone.lsProcessOperTemp
-                
-            lsProcessDup = copy.deepcopy(lsProcess)
-            # sort the zone process by ramp up ability
-            lsProcessDup = sorted(lsProcessDup, key=lambda lsProcessDup: lsProcessDup.RampRatePerM, reverse=True)   
-            
+
             # allocate regulation capacity of the zone
             if objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] > 0.001:
-                allocateRegulationCapacity_nonspin(instance, objMarketDup, objZone, lsProcessDup, iHighestTSIndex, indexYS)
+                allocateRegulationCapacity_nonspin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
             # allocate 10 min operational reserve capacity of the zone, non-spinning reserve
             if objZone.fASDfc10MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
-                allocate10MinReserve_nonspin(instance, objMarketDup, objZone, lsProcessDup, iHighestTSIndex, indexYS)
+                allocate10MinReserve_nonspin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
             # allocate 30 min operational reserve capacity of the zone, non-spinning reserve
             if objZone.fASDfc30MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
-                allocate30MinReserve_nonspin(instance, objMarketDup, objZone, lsProcessDup, iHighestTSIndex, indexYS)
-
-            # update process operation mode to original process list
-            for objProcessDup in lsProcessDup:
-                
-                if sMode == "ExecMode":
-                    lsProcess = objZone.lsProcess
-                elif sMode == "PlanMode":  
-                    lsProcess = objZone.lsProcessOperTemp
-                
-                for objProcess in lsProcess:
-                    if objProcessDup.sProcessID == objProcess.sProcessID:
-                        objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] = objProcessDup.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS]
-                        break
+                allocate30MinReserve_nonspin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
 
         # if cannot be served by local process, commit neighbour's process
         
@@ -112,7 +112,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                     iOperatoinStatus = objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS]
                     
                     objProcessOrigin = objMarket.lsZone[indexZone].lsProcess[indexProcess]
-                    for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                    for objDayTS in objDay.lsDiurnalTS:
                         objProcessOrigin.iOperatoinStatus_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iOperatoinStatus
                 
             elif sMode == "PlanMode":  
@@ -120,25 +120,54 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                     iOperatoinStatus = objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS]
                     
                     objProcessOrigin = objMarket.lsZone[indexZone].lsProcessOperTemp[indexProcess]
-                    for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
-                        objProcessOrigin.iOperatoinStatus_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iOperatoinStatus              
-                                    
+                    for objDayTS in objDay.lsDiurnalTS:
+                        objProcessOrigin.iOperatoinStatus_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iOperatoinStatus
+
+        for indexZone, objZone in enumerate(objMarket.lsZone):
+            for objDayTS in objDay.lsDiurnalTS:
+                objZone.fASDfcRegulation_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = objMarketDup.lsZone[indexZone].fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS]
+                objZone.fASDfc10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = objMarketDup.lsZone[indexZone].fASDfc10MinReserve_TS_YS[iHighestTSIndex, indexYS] 
+                objZone.fASDfc30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = objMarketDup.lsZone[indexZone].fASDfc30MinReserve_TS_YS[iHighestTSIndex, indexYS]
+
+        # copy process ancillary service allocation for debuging
+        for indexZone, objZone in enumerate(objMarketDup.lsZone):
+            if sMode == "ExecMode":
+                lsProcessDup = objZone.lsProcess
+                lsProcessOri = objMarket.lsZone[indexZone].lsProcess
+            elif sMode == "PlanMode":  
+                lsProcessDup = objZone.lsProcessOperTemp
+                lsProcessOri = objMarket.lsZone[indexZone].lsProcessOperTemp
+                
+            for indexProcess, objProcess in enumerate(lsProcessDup):
+                iAS1 = objProcess.fASRegulation_TS_YS[iHighestTSIndex, indexYS]
+                iAS2 = objProcess.fAS10MinReserve_TS_YS[iHighestTSIndex, indexYS]
+                iAS3 = objProcess.fAS30MinReserve_TS_YS[iHighestTSIndex, indexYS]
+
+                objProcessOrigin = lsProcessOri[indexProcess]
+                for objDayTS in objDay.lsDiurnalTS:
+                    objProcessOrigin.fASRegulation_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iAS1
+                    objProcessOrigin.fAS10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iAS2
+                    objProcessOrigin.fAS30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] = iAS3
+
     return
+
 
 
 # ----------------------------------------------------------------------------
 # -------------------- regulation --------------------------------------------
 # ----------------------------------------------------------------------------
 
-def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcessDup, indexTS, indexYS):
+def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate regulation capacity of the zone, and calculate deficit '''
     
     objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] = objZone.fASRqrRegulation_TS_YS[indexTS, indexYS]
-    sYearStep = instance.iAllYearSteps_YS[indexYS]
+
+    lsProcessIndex = objMarket.lsDispatchProcessIndex
     
     # storage and limited dispatchable
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
         
             if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
@@ -147,7 +176,7 @@ def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcessDup, 
                         + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
                         # assume the regulation requirement is for 30 seconds
                         fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) / 2
-                        fTotalRampUp = min(objProcess.Capacity/20, fTotalRampUp) # assumpe max operative reserve is 20% capacity
+                        fTotalRampUp = min(objProcess.Capacity/5, fTotalRampUp) # assumpe max operative reserve is 20% capacity
                         objProcess.fASRegulation_TS_YS[indexTS, indexYS] = fTotalRampUp
                         objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= objProcess.fASRegulation_TS_YS[indexTS, indexYS]
     
@@ -155,12 +184,13 @@ def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcessDup, 
                 break
         
     # dispatchable process
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-        
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
+    
             if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] == 2 : # the process has to be commited
+                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] != 0 : # the process has to be commited
                     if "NUK" not in objProcess.sProcessName and "CHP" not in objProcess.sProcessName:
                         # check if previous allocated
                         if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
@@ -168,20 +198,21 @@ def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcessDup, 
                                 # assume the regulation requirement is for 30 seconds
                                 objProcess.fASRegulation_TS_YS[indexTS, indexYS] = objProcess.Capacity * (objProcess.RampRatePerM/100) / 2
                                 objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= objProcess.fASRegulation_TS_YS[indexTS, indexYS]
-            else:
-                break
+                else:
+                    break
 
     return
 
 
-def allocateRegulationCapacity_nonspin(instance, objMarket, objZone, lsProcessDup, indexTS, indexYS):
+def allocateRegulationCapacity_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate regulation capacity of the zone, and calculate deficit '''
 
-    sYearStep = instance.iAllYearSteps_YS[indexYS]
-
+    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    
     # dispatchable process for non-spinning reserve
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
             
             if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["Dispatch"] and \
@@ -204,35 +235,38 @@ def allocateRegulationCapacity_nonspin(instance, objMarket, objZone, lsProcessDu
 # -------------------- 10 minutes reserve ------------------------------------
 # ----------------------------------------------------------------------------
 
-def allocate10MinReserve_spin(instance, objMarket, objZone, lsProcessDup, indexTS, indexYS):
+def allocate10MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate 10 min operational reserve capacity of the zone, and calculate deficit '''
     
     objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] = objZone.fASRqr10MinReserve_TS_YS[indexTS, indexYS]
-    sYearStep = instance.iAllYearSteps_YS[indexYS]
-        
+
+    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    
     # storage and limited dispatchable
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-        
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
+
             if objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
                     # check if previous allocated
                     if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
                         + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
                         fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) * 10
-                        fTotalRampUp = min(objProcess.Capacity/20, fTotalRampUp) # assumpe max operative reserve is 20% capacity
+                        fTotalRampUp = min(objProcess.Capacity/5, fTotalRampUp) # assumpe max operative reserve is 20% capacity
                         objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] = fTotalRampUp
                         objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] -= objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS]
             else:
                 break
         
     # dispatchable process
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-        
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
+
             if objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] == 2 : # the process has to be commited
+                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] != 0 : # the process has to be commited
                     if "NUK" not in objProcess.sProcessName and "CHP" not in objProcess.sProcessName:
                         # check if previous allocated
                         if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
@@ -247,15 +281,16 @@ def allocate10MinReserve_spin(instance, objMarket, objZone, lsProcessDup, indexT
     return
 
 
-def allocate10MinReserve_nonspin(instance, objMarket, objZone, lsProcessDup, indexTS, indexYS):
+def allocate10MinReserve_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate 10 min operational reserve capacity of the zone, and calculate deficit '''
             
-    sYearStep = instance.iAllYearSteps_YS[indexYS]
+    lsProcessIndex = objMarket.lsDispatchProcessIndex
     
     # dispatchable process
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-        
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
+
             if objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["Dispatch"] and \
                 objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] == 0 : # the process has to be commited
@@ -279,19 +314,21 @@ def allocate10MinReserve_nonspin(instance, objMarket, objZone, lsProcessDup, ind
 # -------------------- 30 minutes reserve ------------------------------------
 # ----------------------------------------------------------------------------
 
-def allocate30MinReserve_spin(instance, objMarket, objZone, lsProcessDup, indexTS, indexYS):
+def allocate30MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate 30 min operational reserve capacity of the zone, and calculate deficit '''
     
     objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] = objZone.fASRqr30MinReserve_TS_YS[indexTS, indexYS]
-    sYearStep = instance.iAllYearSteps_YS[indexYS]
 
+    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    
     # dispatchable process
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-            
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
+
             if objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] == 2 : # the process has to be commited
+                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] != 0 : # the process has to be commited
                     if "CHP" not in objProcess.sProcessName:
                         # check if previous allocated
                         if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
@@ -306,14 +343,15 @@ def allocate30MinReserve_spin(instance, objMarket, objZone, lsProcessDup, indexT
     return
 
 
-def allocate30MinReserve_nonspin(instance, objMarket, objZone, lsProcessDup, indexTS, indexYS):
+def allocate30MinReserve_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate 30 min operational reserve capacity of the zone, and calculate deficit '''
-    
-    sYearStep = instance.iAllYearSteps_YS[indexYS]
+
+    lsProcessIndex = objMarket.lsDispatchProcessIndex
     
     # dispatchable process
-    for objProcess in lsProcessDup:
-        if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
+    for objProcessIndex in lsProcessIndex:
+        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
+            objProcess = lsProcess[objProcessIndex.indexProcess]
             
             if objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] > 0.001:
                 if objProcess.sOperationMode in ["Dispatch"] and \
@@ -331,7 +369,4 @@ def allocate30MinReserve_nonspin(instance, objMarket, objZone, lsProcessDup, ind
                 break
 
     return
-
-
-
 

@@ -59,7 +59,7 @@ def calLimitedDispatchGeneration(instance, objZone, objProcess, indexYS):
     if "REW_HYD_LG" in objProcess.sProcessName in ["REW_HYD_LG"]:
         # find the day time slice
         lsDayTimeSlice = list(instance.lsDayTimeSlice)
-        for indexDay, objDay in enumerate(lsDayTimeSlice):
+        for objDay in lsDayTimeSlice:
             # get avg CF in a day (get the first time slice)
             fDayCF =  objZone.aReHydroOutput_TS[objDay.lsDiurnalTS[0].iTimeSliceIndex] / 100
             # adjust CF according to residual demand
@@ -80,7 +80,7 @@ def calHPSOperation(instance, objZone, objProcess, indexYS):
     ''' calculate hydro pump storage operation '''
 
     lsDayTimeSlice = list(instance.lsDayTimeSlice)
-    for indexDay, objDay in enumerate(lsDayTimeSlice):
+    for objDay in lsDayTimeSlice:
 
         fDayStorageOutput = objProcess.fDeratedCapacity * 6                     # MW -> MWh (assume ouput as 6 hour equivilent capacity every day)
         fDayStorageInput = fDayStorageOutput / (objProcess.EffPowerCM / 100)    # MWh
@@ -163,7 +163,7 @@ def calHPSOperation(instance, objZone, objProcess, indexYS):
 def dispatch_thermalUnit(instance, objMarket, indexYS, sMode):
     ''' dispatch thermal units '''
 
-    for indexDay, objDay in enumerate(instance.lsDayTimeSlice):
+    for objDay in instance.lsDayTimeSlice:
         
         # sort variable generation cost of the day (by the first timeslice of the day)
         objMarket.lsDispatchProcessIndex = sorted(objMarket.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \

@@ -13,7 +13,7 @@ def dispatch_Main(objMarket, instance, indexYearStep):
     ''' the main function of dispatch '''
         
     # reset variables
-    dispatch_Init(objMarket, indexYearStep)
+    dispatch_Init(objMarket, indexYearStep, "ExecMode")
 
     # copy key information to market process list objMarket.lsDispatchProcessIndex and objZone.lsCHPProcessIndex
     dispatch_ProcessIndexListInit(instance, objMarket, indexYearStep, "ExecMode")
@@ -53,7 +53,7 @@ def dispatch_Plan(instance, objMarket, indexYearStep):
     ''' the main function of dispatch for planning '''
         
     # reset variables
-    dispatch_Init(objMarket, indexYearStep)
+    dispatch_Init(objMarket, indexYearStep, "PlanMode")
     
     # copy key information to market process list objMarket.lsDispatchProcessIndex and objZone.lsCHPProcessIndex
     dispatch_ProcessIndexListInit(instance, objMarket, indexYearStep, "PlanMode")
@@ -89,7 +89,7 @@ def dispatch_Plan(instance, objMarket, indexYearStep):
 
 
 
-def dispatch_Init(objMarket, indexYearStep):
+def dispatch_Init(objMarket, indexYearStep, sMode):
     ''' reset variables  '''
     # transmission
     for objTrans in objMarket.lsTransmission:
@@ -107,6 +107,21 @@ def dispatch_Init(objMarket, indexYearStep):
         objZone.fASDfcRegulation_TS_YS[:,indexYearStep] = 0
         objZone.fASDfc10MinReserve_TS_YS[:,indexYearStep] = 0
         objZone.fASDfc30MinReserve_TS_YS[:,indexYearStep] = 0
+
+    # process
+    for objZone in objMarket.lsZone:
+        if sMode == "ExecMode":
+            lsProcess = objZone.lsProcess
+        elif sMode == "PlanMode":
+            lsProcess = objZone.lsProcessOperTemp
+            
+        for objProcess in lsProcess:
+            objProcess.fHourlyPowerOutput_TS_YS[:,indexYearStep] = 0
+            objProcess.fHourlyHeatOutput_TS_YS[:,indexYearStep] = 0
+            objProcess.fASRegulation_TS_YS[:,indexYearStep] = 0
+            objProcess.fAS10MinReserve_TS_YS[:,indexYearStep] = 0
+            objProcess.fAS30MinReserve_TS_YS[:,indexYearStep] = 0
+            objProcess.iOperatoinStatus_TS_YS[:,indexYearStep] = 0
 
     return
 

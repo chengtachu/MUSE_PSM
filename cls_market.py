@@ -50,9 +50,8 @@ class Market:
         # future investment
         model_VI_plan.calInvestmentPlanning(self, instance)
         
-            # update ancillary service requirement
-        
         # remove over investment
+        print("")
         
         # save modelling result
         

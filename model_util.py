@@ -241,11 +241,11 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
     for objZone in objMarket.lsZone:
     
         lsDayTimeSlice = list(instance.lsDayTimeSlice)
-        for indexDay, objDay in enumerate(lsDayTimeSlice):
+        for objDay in lsDayTimeSlice:
             
             # find the highest demand in the day
             fDailyHighestDemand = 0
-            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            for objDayTS in objDay.lsDiurnalTS:
                 fZoneDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
                 if fZoneDemand > fDailyHighestDemand:
                     fDailyHighestDemand = fZoneDemand
@@ -255,7 +255,7 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
             if fDailyHighestDemand > 0:
                 fRegulationRequire = fDailyHighestDemand * objMarket.fRegulationRequire_YS[instance.iFSBaseYearIndex] / 100
             
-            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            for objDayTS in objDay.lsDiurnalTS:
                 objZone.fASRqrRegulation_TS_YS[objDayTS.iTimeSliceIndex,instance.iFSBaseYearIndex] = fRegulationRequire
                     
     # --------------------------------------------------------    
@@ -267,17 +267,17 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
     
     # calculate daily required reserve capacity in the market
     lsDayTimeSlice = list(instance.lsDayTimeSlice)
-    for indexDay, objDay in enumerate(lsDayTimeSlice):
+    for objDay in lsDayTimeSlice:
         
         # find the highest demand in the day
         fDailyHighestDemand = 0
-        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+        for objDayTS in objDay.lsDiurnalTS:
             fMarketDemand = fMarketTotalDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
             if fMarketDemand > fDailyHighestDemand:
                 fDailyHighestDemand = fMarketDemand 
                 
         # calculate daily required reserve capacity in the market
-        for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+        for objDayTS in objDay.lsDiurnalTS:
             f10mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f10mReserve_YS[instance.iFSBaseYearIndex] / 100
             f30mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f30mReserve_YS[instance.iFSBaseYearIndex] / 100
 
@@ -294,13 +294,13 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
 
 
     lsDayTimeSlice = list(instance.lsDayTimeSlice)
-    for indexDay, objDay in enumerate(lsDayTimeSlice):
+    for objDay in lsDayTimeSlice:
 
         # get peak demand of the zone in the day
         fPeakDemand_ZN = np.zeros(len(objMarket.lsZone))
         for indexZone, objZone in enumerate(objMarket.lsZone):
             fPeakDemand = 0  # MW
-            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            for objDayTS in objDay.lsDiurnalTS:
                 if objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] > fPeakDemand:
                     fPeakDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
             fPeakDemand_ZN[indexZone] = fPeakDemand
@@ -311,7 +311,7 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
         
         # minimal reserve requirement is half of the biggest unit in the zone
         for indexZone, objZone in enumerate(objMarket.lsZone):
-            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            for objDayTS in objDay.lsDiurnalTS:
                 fAssignedCapacity_ZN[indexZone] += fBiggestUnitCapacity_ZN[indexZone] / 2
                 f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexZone] / 2
                 objZone.fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += fBiggestUnitCapacity_ZN[indexZone] / 2
@@ -330,7 +330,7 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
                         indexLowestReserveZone = indexZone
                 # assign reserve capacity to the region
                 fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone]
-                for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                for objDayTS in objDay.lsDiurnalTS:
                     f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone]
                     objMarket.lsZone[indexLowestReserveZone].fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += \
                     fBiggestUnitCapacity_ZN[indexLowestReserveZone]
@@ -343,7 +343,7 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
         
         # minimal reserve requirement is the biggest unit in the zone
         for indexZone, objZone in enumerate(objMarket.lsZone):
-            for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+            for objDayTS in objDay.lsDiurnalTS:
                 fAssignedCapacity_ZN[indexZone] += fBiggestUnitCapacity_ZN[indexZone]
                 f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexZone]
                 objZone.fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += fBiggestUnitCapacity_ZN[indexZone]
@@ -362,7 +362,7 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
                         indexLowestReserveZone = indexZone
                 # assign reserve capacity to the region
                 fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone]
-                for indexTS, objDayTS in enumerate(objDay.lsDiurnalTS):
+                for objDayTS in objDay.lsDiurnalTS:
                     f30mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone]
                     objMarket.lsZone[indexLowestReserveZone].fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += \
                     fBiggestUnitCapacity_ZN[indexLowestReserveZone]
