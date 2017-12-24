@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import copy
+import math
 import numpy as np
 
 import cls_misc
@@ -603,7 +604,9 @@ def getNewProcessCandidate(instance, objZone, indexYS):
         if objNewProcessAssump.StdUnitCapacity > np.average(objZone.fPowerDemand_TS_YS[:,indexYS]) / 30:
             objNewProcess.Capacity = objNewProcessAssump.StdUnitCapacity
         else:
-            objNewProcess.Capacity = np.average(objZone.fPowerDemand_TS_YS[:,indexYS]) / 30
+            # take the round up unit numbers
+            objNewProcess.NoUnit = math.ceil((np.average(objZone.fPowerDemand_TS_YS[:,indexYS])/30)/objNewProcessAssump.StdUnitCapacity)
+            objNewProcess.Capacity = int(objNewProcessAssump.StdUnitCapacity * objNewProcess.NoUnit)
         objNewProcess.TechnicalLife = objNewProcessAssump.TechnicalLife
         objNewProcess.NoUnit = int(objNewProcess.Capacity // objNewProcessAssump.StdUnitCapacity) + 1
         objNewProcess.CommitTime = instance.iAllYearSteps_YS[indexYS]

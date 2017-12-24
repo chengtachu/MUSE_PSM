@@ -99,21 +99,14 @@ def calInvestmentPlanning(objMarket, instance):
             bFinishYearPlanning = False
             while (not bFinishYearPlanning):
             
-                fPreInstallSystemResDemand = 0
-                for objZone in objMarket.lsZone:
-                    fPreInstallSystemResDemand += np.average(objZone.fPowerResDemand_TS_YS[:,indexYear])
-                if fPreInstallSystemResDemand < 0.001:
-                    bFinishYearPlanning = True
-                    break   # break the while loop if there is not residual demand
-                
                 # update available transfer capacity of all connection path
                 model_util_trans.updateConnectionPathAvailCapacity(instance, objMarket, indexYear)
                 
                 # calculate the LCOE of all plant
                 calAllNewPowerPlantLCOE(instance, objMarket, indexYear)
-
+                
                 # install the process with least LCOE
-                iZoneIdx, iProcessIdx = installNewProcess(instance, objMarket, indexYear)
+                iZoneIdx, iProcessIdx = installNewProcessLeastLCOE(instance, objMarket, indexYear)
 
                 # re-dispatch
                 model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
@@ -124,18 +117,7 @@ def calInvestmentPlanning(objMarket, instance):
                 # check all residual demand
                 if checkAllDemandServed(instance, objMarket, indexYear):
                     bFinishYearPlanning = True
-                    
-                # remove the candidate from the list if it doesnt reduce residual demand (necessary for the algorithm)
-                fPostInstallSystemResDemand = 0
-                for objZone in objMarket.lsZone:
-                    fPostInstallSystemResDemand += np.average(objZone.fPowerResDemand_TS_YS[:,indexYear])
-                if fPostInstallSystemResDemand + 1 >= fPreInstallSystemResDemand:
-                    objMarket.lsZone[iZoneIdx].lsNewProcessCandidate[iProcessIdx].fMaxAllowedNewBuildCapacity = 0
-                    
-                for objZone in objMarket.lsZone:
-                    print(objZone.sZone,np.average(objZone.fPowerResDemand_TS_YS[:,indexYear]))
-                    
-                print("")
+
 
             #--------------------------------------------------------------
             # install new plant to reach ancillary service requirement
@@ -153,6 +135,31 @@ def calInvestmentPlanning(objMarket, instance):
                     if bInstallNewUnit == True:
                         # re-dispatch
                         model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
+                        
+                        iTS = 17
+                        for objZonePrint in objMarket.lsZone:
+                            fTotalExport = 0
+                            for objTrans in objMarket.lsTransmission:
+                                if objTrans.From == objZonePrint.sZone:
+                                    fTotalExport += objTrans.fTransLineInput_TS_YS[iTS,indexYear]
+                            fTotalImport = 0
+                            for objTrans in objMarket.lsTransmission:
+                                if objTrans.To == objZonePrint.sZone:
+                                    fTotalImport += objTrans.fTransLineOutput_TS_YS[iTS,indexYear]               
+                            print(" ")
+                            print(objZonePrint.sZone, objZonePrint.fPowerDemand_TS_YS[iTS,indexYear],\
+                                  objZonePrint.fPowerOutput_TS_YS[iTS,indexYear],objZonePrint.fPowerResDemand_TS_YS[iTS,indexYear],fTotalExport,fTotalImport)
+                            print("Req AS", objZonePrint.fASRqrRegulation_TS_YS[iTS, indexYear], \
+                                  objZonePrint.fASRqr10MinReserve_TS_YS[iTS, indexYear], objZonePrint.fASRqr30MinReserve_TS_YS[iTS, indexYear])
+                            print("Res AS", objZonePrint.fASDfcRegulation_TS_YS[iTS, indexYear], \
+                                  objZonePrint.fASDfc10MinReserve_TS_YS[iTS, indexYear], objZonePrint.fASDfc30MinReserve_TS_YS[iTS, indexYear])
+                            for objProcess in objZonePrint.lsProcessOperTemp:
+                                print(objProcess.sProcessName, objProcess.Capacity,\
+                                      objProcess.fHourlyPowerOutput_TS_YS[iTS,indexYear], objProcess.iOperatoinStatus_TS_YS[iTS,indexYear],\
+                                      objProcess.fASRegulation_TS_YS[iTS,indexYear],objProcess.fAS10MinReserve_TS_YS[iTS,indexYear],objProcess.fAS30MinReserve_TS_YS[iTS,indexYear])  
+                                
+                        print("")
+                
                     else:
                         bReachASReruirement = True
                         break 
@@ -248,13 +255,11 @@ def calAllNewPowerPlantLCOE(instance, objMarket, indexYear):
                         fPlantTotalGeneration[indexTS] += fExport * objTimeSlice.iRepHoursInYear    # MWh
                         fMaxGeneration = fMaxGeneration - fExport
                         
-                        '''
                         # dispatch the rest part if the generation cost is lower than nodal price
                         if fMaxGeneration > 0:
                             if objNewProcessCandidate.fVariableGenCost_TS_YS[indexTS, indexYear] < objZone.fNodalPrice_TS_YS[indexTS, indexYear]:
                                 fPlantTotalGeneration[indexTS] += fMaxGeneration * objTimeSlice.iRepHoursInYear    # MWh
-                        '''
-                                
+
                 #-------------------------------------------------------
                 # annual fixed investment (MillionUSD / year)
                 fNewPlantCost = objNewProcessCandidate.fAnnualFixedCost
@@ -334,10 +339,7 @@ def installNewCHP(instance, objZone, indexYear):
             fLowestLCOE = objNewPlantCandidate.fLCOE
 
     if iPlantIndex != -1:
-        
-        print("install CHP", indexYear, objZone.sZone, objZone.lsNewCHPCandidate[iPlantIndex].sProcessName, \
-              objZone.lsNewCHPCandidate[iPlantIndex].Capacity)   
-                
+
         installNewPlant(instance, objZone, objZone.lsNewCHPCandidate[indexPlant], indexYear)
         return True
     else:
@@ -345,7 +347,7 @@ def installNewCHP(instance, objZone, indexYear):
 
 
 
-def installNewProcess(instance, objMarket, indexYear):
+def installNewProcessLeastLCOE(instance, objMarket, indexYear):
     ''' install new Process '''
     
     iLCOEZoneIdx = 0
@@ -360,11 +362,9 @@ def installNewProcess(instance, objMarket, indexYear):
 
     if iProcessIndex != -1:
         objZone = objMarket.lsZone[iLCOEZoneIdx]
-        
-        
+         
         print("install LCOE", indexYear, objZone.sZone, objZone.lsNewProcessCandidate[iProcessIndex].sProcessName, \
               objZone.lsNewProcessCandidate[iProcessIndex].Capacity, objZone.lsNewProcessCandidate[iProcessIndex].fLCOE)
-        
         
         installNewPlant(instance, objZone, objZone.lsNewProcessCandidate[iProcessIndex], indexYear)
         
@@ -405,6 +405,28 @@ def installNewPlant(instance, objZone, objCandidate, indexYear):
     return
     
     
+
+def checkResDemandImprovre(instance, objMarket, objMarketDup, indexYear):
+    ''' check the new installed process reduce residual demand in each time-slice '''
+
+    bResDemandImprove = True
+    for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+        
+        fOriginalMarketResDem = 0
+        for objZone in objMarket.lsZone:
+            fOriginalMarketResDem += objZone.fPowerResDemand_TS_YS[indexTS,indexYear]
+            
+        fNewMarketResDem = 0
+        for objZone in objMarketDup.lsZone:
+            fNewMarketResDem += objZone.fPowerResDemand_TS_YS[indexTS,indexYear]
+               
+        if fNewMarketResDem > fOriginalMarketResDem + 0.01:
+            bResDemandImprove = False
+            return bResDemandImprove
+
+    return bResDemandImprove
+
+
 
 def checkAllDemandServed(instance, objMarket, indexYear):
     ''' check all residual demand '''
@@ -452,12 +474,9 @@ def checkAndInstallAncillaryService(instance, objZone, indexYear):
                 
     if indexNewInstall != -1:
         
-        print("DM", indexYear, objZone.sZone, np.average(objZone.fPowerOutput_TS_YS[:, indexYear]), np.average(objZone.fPowerResDemand_TS_YS[:, indexYear]))
-        print("Res AS", indexYear, objZone.sZone, fMaxDefRegulationPerM, fMaxDef10MinReservePerM, fMaxDef30MinReservePerM)
-        
         print("install AS", indexYear, objZone.sZone, objZone.lsNewProcessCandidate[indexNewInstall].sProcessName, \
               objZone.lsNewProcessCandidate[indexNewInstall].Capacity)
-        
+                
         installNewPlant(instance, objZone, objZone.lsNewProcessCandidate[indexNewInstall], indexYear)
         bInstallNewUnit = True
     else:

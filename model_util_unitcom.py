@@ -6,6 +6,8 @@ import numpy as np
 import cls_misc
 import model_util_gen
 
+EquASMultiplier = [0.5, 10, 30]     # the equivilant capacity per minute multiplier of each type of ancillary service
+
 def unitCommitment(instance, objMarket, indexYS, sMode):
     ''' daily basis unit commitment for thermal unit '''
 
@@ -18,7 +20,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
         
     for indexDay, objDay in enumerate(instance.lsDayTimeSlice):
     
-        # get the time-slice with highest residual demand
+        # get the time-slice with highest residual demand in the system in the day
         fDailyHighestDemand = 0
         iHighestTSIndex = 0
         for objDayTS in objDay.lsDiurnalTS:
@@ -49,8 +51,8 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
             objDispatchProcess = lsProcess[objProcessIndex.indexProcess]
             model_util_gen.dispatch_thermalUnit_TS(instance, objMarketDup, objDispatchZone, objDispatchProcess, iHighestTSIndex, indexYS)
 
-        # restructure lsDispatchProcessIndex (to include all ramp up facilities)
-        objMarketDup.lsDispatchProcessIndex = list()
+        # list of all ramp up facilities
+        objMarketDup.lsAncSerProcessIndex = list()
         for indexZone, objZone in enumerate(objMarketDup.lsZone):
         
             if sMode == "ExecMode":
@@ -61,13 +63,13 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
             sYearStep = instance.iAllYearSteps_YS[indexYS]
             for indexProcess, objProcess in enumerate(lsProcess):
                 if objProcess.CommitTime <= sYearStep and objProcess.DeCommitTime > sYearStep:
-                    objMarketDup.lsDispatchProcessIndex.append(cls_misc.MarketDispatchProcess(  \
+                    objMarketDup.lsAncSerProcessIndex.append(cls_misc.MarketDispatchProcess(  \
                         indexZone=indexZone, indexProcess=indexProcess, sProcessName=objProcess.sProcessName, \
                         RampRatePerM=objProcess.RampRatePerM, fVariableGenCost_TS=objProcess.fVariableGenCost_TS_YS[:,indexYS] ))
 
         # sort system ramp up ability
-        objMarketDup.lsDispatchProcessIndex = sorted(objMarketDup.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
-                                                  lsDispatchProcessIndex.RampRatePerM, reverse=True) 
+        objMarketDup.lsAncSerProcessIndex = sorted(objMarketDup.lsAncSerProcessIndex, key=lambda lsAncSerProcessIndex: \
+                                                  lsAncSerProcessIndex.RampRatePerM, reverse=True) 
         
         # allocate ancillary service among commited units (spinning reserve - limited ramp range)
         for objZone in objMarketDup.lsZone:
@@ -162,18 +164,44 @@ def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcess, ind
     
     objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] = objZone.fASRqrRegulation_TS_YS[indexTS, indexYS]
 
-    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    lsProcessIndex = objMarket.lsAncSerProcessIndex
     
     # storage and limited dispatchable
     for objProcessIndex in lsProcessIndex:
         if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
             objProcess = lsProcess[objProcessIndex.indexProcess]
         
-            if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
+            if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
+        
+                fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+                
+                # assumpe max operative reserve is 20% capacity
+                fMaxOutput = objProcess.Capacity / 5        
+        
+                bFinishAllocateProcess = False
+                while(not bFinishAllocateProcess):
+
+                    if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] < 0.001:
+                        bFinishAllocateProcess = True
+                        break
+                    else:
+                    
+                        fTotalAllocatedCapacity = objProcess.fASRegulation_TS_YS[indexTS, indexYS] + \
+                        objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]
+                        
+                        if fTotalAllocatedCapacity < fMaxOutput:
+                            
+                            # allocate on unit to regulation
+                            fNewUnitAllocattion = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[0]
+                            objProcess.fASRegulation_TS_YS[indexTS, indexYS] += fNewUnitAllocattion
+                            objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= fNewUnitAllocattion                 
+                        
+                        
+                        
                     # check if previous allocated
                     if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
                         + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
+                        
                         # assume the regulation requirement is for 30 seconds
                         fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) / 2
                         fTotalRampUp = min(objProcess.Capacity/5, fTotalRampUp) # assumpe max operative reserve is 20% capacity
@@ -207,7 +235,7 @@ def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcess, ind
 def allocateRegulationCapacity_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate regulation capacity of the zone, and calculate deficit '''
 
-    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    lsProcessIndex = objMarket.lsAncSerProcessIndex
     
     # dispatchable process for non-spinning reserve
     for objProcessIndex in lsProcessIndex:
@@ -240,7 +268,7 @@ def allocate10MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, 
     
     objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] = objZone.fASRqr10MinReserve_TS_YS[indexTS, indexYS]
 
-    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    lsProcessIndex = objMarket.lsAncSerProcessIndex
     
     # storage and limited dispatchable
     for objProcessIndex in lsProcessIndex:
@@ -284,7 +312,7 @@ def allocate10MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, 
 def allocate10MinReserve_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate 10 min operational reserve capacity of the zone, and calculate deficit '''
             
-    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    lsProcessIndex = objMarket.lsAncSerProcessIndex
     
     # dispatchable process
     for objProcessIndex in lsProcessIndex:
@@ -319,7 +347,7 @@ def allocate30MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, 
     
     objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] = objZone.fASRqr30MinReserve_TS_YS[indexTS, indexYS]
 
-    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    lsProcessIndex = objMarket.lsAncSerProcessIndex
     
     # dispatchable process
     for objProcessIndex in lsProcessIndex:
@@ -346,7 +374,7 @@ def allocate30MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, 
 def allocate30MinReserve_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
     ''' allocate 30 min operational reserve capacity of the zone, and calculate deficit '''
 
-    lsProcessIndex = objMarket.lsDispatchProcessIndex
+    lsProcessIndex = objMarket.lsAncSerProcessIndex
     
     # dispatchable process
     for objProcessIndex in lsProcessIndex:
