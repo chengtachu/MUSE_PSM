@@ -384,6 +384,7 @@ def installNewPlant(instance, objZone, objCandidate, indexYear):
         if objPlant.sProcessName == objCandidate.sProcessName and objPlant.CommitTime == objCandidate.CommitTime:
             # update plant in objZone.lsProcessPlanned
             objPlant.Capacity += objCandidate.Capacity
+            objPlant.NoUnit += objCandidate.NoUnit
             objPlant.fAnnualCapex += objCandidate.fAnnualCapex
             objPlant.fAnnualFixedCost += objCandidate.fAnnualFixedCost
             objPlant.fDeratedCapacity += objCandidate.fDeratedCapacity
@@ -391,6 +392,7 @@ def installNewPlant(instance, objZone, objCandidate, indexYear):
             for indexPlantTemp, objPlantTemp in enumerate(objZone.lsProcessOperTemp):
                 if objPlantTemp.sProcessName == objCandidate.sProcessName and objPlantTemp.CommitTime == objCandidate.CommitTime:
                     objPlantTemp.Capacity += objCandidate.Capacity
+                    objPlantTemp.NoUnit += objCandidate.NoUnit
                     objPlantTemp.fAnnualCapex += objCandidate.fAnnualCapex
                     objPlantTemp.fAnnualFixedCost += objCandidate.fAnnualFixedCost
                     objPlantTemp.fDeratedCapacity += objCandidate.fDeratedCapacity

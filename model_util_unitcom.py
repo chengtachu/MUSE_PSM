@@ -29,15 +29,15 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                 fDailyHighestDemand = fMarketDemand
                 iHighestTSIndex = objDayTS.iTimeSliceIndex
         
+        # sort variable generation cost
+        objMarketDup.lsDispatchProcessIndex = sorted(objMarketDup.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
+                                                  lsDispatchProcessIndex.fVariableGenCost_TS[iHighestTSIndex])        
+        
         # add required ancillary service capacity to residual demand 
         for objZone in objMarketDup.lsZone:
             objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqrRegulation_TS_YS[iHighestTSIndex,indexYS]
             objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr10MinReserve_TS_YS[iHighestTSIndex,indexYS]
             objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr30MinReserve_TS_YS[iHighestTSIndex,indexYS]
-        
-        # sort variable generation cost
-        objMarketDup.lsDispatchProcessIndex = sorted(objMarketDup.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
-                                                  lsDispatchProcessIndex.fVariableGenCost_TS[iHighestTSIndex])
         
         # dispatch the time-slice with highest residual demand (this step make sure a lower bound of reliability requirement)
         for objProcessIndex in objMarketDup.lsDispatchProcessIndex:
@@ -79,12 +79,33 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
             elif sMode == "PlanMode":  
                 lsProcess = objZone.lsProcessOperTemp
             
-            # allocate regulation capacity of the zone, and calculate deficit
-            allocateRegulationCapacity_spin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
-            # allocate 10 min operational reserve capacity of the zone, and calculate deficit
-            allocate10MinReserve_spin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
-            # allocate 30 min operational reserve capacity of the zone, and calculate deficit
-            allocate30MinReserve_spin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
+            objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] = objZone.fASRqrRegulation_TS_YS[iHighestTSIndex, indexYS]
+            objZone.fASDfc10MinReserve_TS_YS[iHighestTSIndex, indexYS] = objZone.fASRqr10MinReserve_TS_YS[iHighestTSIndex, indexYS]
+            objZone.fASDfc30MinReserve_TS_YS[iHighestTSIndex, indexYS] = objZone.fASRqr30MinReserve_TS_YS[iHighestTSIndex, indexYS]
+            
+            for objProcessIndex in objMarketDup.lsAncSerProcessIndex:
+                if objZone.sZone ==  objMarketDup.lsZone[objProcessIndex.indexZone].sZone:
+                    objProcess = lsProcess[objProcessIndex.indexProcess]
+                    if objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] != 0: # the process has NOT be commited
+                        for iUnit in range(int(objProcess.NoUnit)):
+                            
+                            if objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] > 0.001:
+                                if objProcess.fHourlyPowerOutput_TS_YS[iHighestTSIndex,indexYS] > 0.001:
+                                    allocateRegulationCapacity_spin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
+                                else:
+                                    allocateRegulationCapacity_nonspin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
+                                    
+                            elif objZone.fASDfc10MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
+                                if objProcess.fHourlyPowerOutput_TS_YS[iHighestTSIndex,indexYS] > 0.001:
+                                    allocate10MinReserve_spin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
+                                else:
+                                    allocate10MinReserve_nonspin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
+                                    
+                            elif objZone.fASDfc30MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
+                                if objProcess.fHourlyPowerOutput_TS_YS[iHighestTSIndex,indexYS] > 0.001:
+                                    allocate30MinReserve_spin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
+                                else:
+                                    allocate30MinReserve_nonspin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
             
         # commit more units if there is unserved ancillary service (non-spinning reserve)
         for objZone in objMarketDup.lsZone:
@@ -94,15 +115,17 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
             elif sMode == "PlanMode":  
                 lsProcess = objZone.lsProcessOperTemp
 
-            # allocate regulation capacity of the zone
-            if objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] > 0.001:
-                allocateRegulationCapacity_nonspin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
-            # allocate 10 min operational reserve capacity of the zone, non-spinning reserve
-            if objZone.fASDfc10MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
-                allocate10MinReserve_nonspin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
-            # allocate 30 min operational reserve capacity of the zone, non-spinning reserve
-            if objZone.fASDfc30MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
-                allocate30MinReserve_nonspin(instance, objMarketDup, objZone, lsProcess, iHighestTSIndex, indexYS)
+            for objProcessIndex in objMarketDup.lsAncSerProcessIndex:
+                if objZone.sZone ==  objMarketDup.lsZone[objProcessIndex.indexZone].sZone:
+                    objProcess = lsProcess[objProcessIndex.indexProcess]
+                    if objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] == 0: # the process has NOT be commited
+                        for iUnit in range(int(objProcess.NoUnit)):
+                            if objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] > 0.001:
+                                allocateRegulationCapacity_nonspin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
+                            elif objZone.fASDfc10MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
+                                allocate10MinReserve_nonspin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
+                            elif objZone.fASDfc30MinReserve_TS_YS[iHighestTSIndex, indexYS] > 0.001:
+                                allocate30MinReserve_nonspin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
 
         # if cannot be served by local process, commit neighbour's process
         
@@ -159,102 +182,58 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
 # -------------------- regulation --------------------------------------------
 # ----------------------------------------------------------------------------
 
-def allocateRegulationCapacity_spin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
+def allocateRegulationCapacity_spin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate regulation capacity of the zone, and calculate deficit '''
-    
-    objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] = objZone.fASRqrRegulation_TS_YS[indexTS, indexYS]
 
-    lsProcessIndex = objMarket.lsAncSerProcessIndex
-    
+    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+
     # storage and limited dispatchable
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
-        
-            if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
-        
-                fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
-                
-                # assumpe max operative reserve is 20% capacity
-                fMaxOutput = objProcess.Capacity / 5        
-        
-                bFinishAllocateProcess = False
-                while(not bFinishAllocateProcess):
+    if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
 
-                    if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] < 0.001:
-                        bFinishAllocateProcess = True
-                        break
-                    else:
-                    
-                        fTotalAllocatedCapacity = objProcess.fASRegulation_TS_YS[indexTS, indexYS] + \
-                        objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]
-                        
-                        if fTotalAllocatedCapacity < fMaxOutput:
-                            
-                            # allocate on unit to regulation
-                            fNewUnitAllocattion = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[0]
-                            objProcess.fASRegulation_TS_YS[indexTS, indexYS] += fNewUnitAllocattion
-                            objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= fNewUnitAllocattion                 
-                        
-                        
-                        
-                    # check if previous allocated
-                    if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                        + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                        
-                        # assume the regulation requirement is for 30 seconds
-                        fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) / 2
-                        fTotalRampUp = min(objProcess.Capacity/5, fTotalRampUp) # assumpe max operative reserve is 20% capacity
-                        objProcess.fASRegulation_TS_YS[indexTS, indexYS] = fTotalRampUp
-                        objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= objProcess.fASRegulation_TS_YS[indexTS, indexYS]
-    
-            else:
-                break
-        
+        # assumpe max operative reserve is 20% capacity
+        fMaxOperationRange = fCapacityUnit / 5        
+        fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[0]
+        fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+            
+        # allocate one unit to regulation
+        objProcess.fASRegulation_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+        objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= fMaxRampCapacity                 
+
     # dispatchable process
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
-    
-            if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] != 0 : # the process has to be commited
-                    if "NUK" not in objProcess.sProcessName and "CHP" not in objProcess.sProcessName:
-                        # check if previous allocated
-                        if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                                + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                                # assume the regulation requirement is for 30 seconds
-                                objProcess.fASRegulation_TS_YS[indexTS, indexYS] = objProcess.Capacity * (objProcess.RampRatePerM/100) / 2
-                                objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= objProcess.fASRegulation_TS_YS[indexTS, indexYS]
-                else:
-                    break
+    elif objProcess.sOperationMode in ["Dispatch"]:
+        if "NUK" not in objProcess.sProcessName:
+            
+            # assumpe max operative reserve is 10% capacity
+            fMaxOperationRange = fCapacityUnit / 10        
+            fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[0]
+            fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+                
+            # allocate one unit to regulation
+            objProcess.fASRegulation_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+            objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= fMaxRampCapacity 
 
     return
 
 
-def allocateRegulationCapacity_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
+def allocateRegulationCapacity_nonspin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate regulation capacity of the zone, and calculate deficit '''
 
-    lsProcessIndex = objMarket.lsAncSerProcessIndex
+    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
     
-    # dispatchable process for non-spinning reserve
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
+    # dispatchable process
+    if objProcess.sOperationMode in ["Dispatch"]:
+        if "NUK" not in objProcess.sProcessName:
             
-            if objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] == 0 : # the process has NOT be commited
-                    if "NUK" not in objProcess.sProcessName and "CHP" not in objProcess.sProcessName:
-                        # check if previous allocated
-                        if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                            + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                            # assume the regulation requirement is for 30 seconds
-                            objProcess.fASRegulation_TS_YS[indexTS, indexYS] = objProcess.Capacity * (objProcess.RampRatePerM/100) / 2
-                            objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= objProcess.fASRegulation_TS_YS[indexTS, indexYS]
-                            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
-            else:
-                break
+            # assumpe max operative reserve is 100% capacity
+            fMaxOperationRange = fCapacityUnit        
+            fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[0]
+            fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+                
+            # allocate one unit to regulation
+            objProcess.fASRegulation_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+            objZone.fASDfcRegulation_TS_YS[indexTS, indexYS] -= fMaxRampCapacity 
+
+            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
 
     return
 
@@ -263,78 +242,64 @@ def allocateRegulationCapacity_nonspin(instance, objMarket, objZone, lsProcess, 
 # -------------------- 10 minutes reserve ------------------------------------
 # ----------------------------------------------------------------------------
 
-def allocate10MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
+def allocate10MinReserve_spin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 10 min operational reserve capacity of the zone, and calculate deficit '''
     
-    objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] = objZone.fASRqr10MinReserve_TS_YS[indexTS, indexYS]
+    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
 
-    lsProcessIndex = objMarket.lsAncSerProcessIndex
-    
     # storage and limited dispatchable
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
+    if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
 
-            if objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
-                    # check if previous allocated
-                    if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                        + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                        fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) * 10
-                        fTotalRampUp = min(objProcess.Capacity/5, fTotalRampUp) # assumpe max operative reserve is 20% capacity
-                        objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] = fTotalRampUp
-                        objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] -= objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS]
-            else:
-                break
-        
+        # assumpe max operative reserve is 20% capacity
+        fMaxOperationRange = fCapacityUnit / 5        
+        fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[1]
+        fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+            
+        # allocate one unit to regulation
+        objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+        objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] -= fMaxRampCapacity                 
+
     # dispatchable process
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
-
-            if objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] != 0 : # the process has to be commited
-                    if "NUK" not in objProcess.sProcessName and "CHP" not in objProcess.sProcessName:
-                        # check if previous allocated
-                        if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                                + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                            fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) * 10
-                            fTotalRampUp = min(objProcess.Capacity/10, fTotalRampUp) # assumpe max operative reserve is 10% capacity
-                            objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] = fTotalRampUp
-                            objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] -= objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS]
-            else:
-                break
+    elif objProcess.sOperationMode in ["Dispatch"]:
+        if "NUK" not in objProcess.sProcessName:
+            
+            # assumpe max operative reserve is 10% capacity
+            fMaxOperationRange = fCapacityUnit / 10        
+            fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[1]
+            fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+                
+            # allocate one unit to regulation
+            objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+            objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] -= fMaxRampCapacity 
 
     return
 
 
-def allocate10MinReserve_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
+def allocate10MinReserve_nonspin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 10 min operational reserve capacity of the zone, and calculate deficit '''
-            
-    lsProcessIndex = objMarket.lsAncSerProcessIndex
+
+    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
     
     # dispatchable process
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
+    if objProcess.sOperationMode in ["Dispatch"]:
+        if "NUK" not in objProcess.sProcessName:
+            
+            # assumpe max operative reserve is 100% capacity
+            fMaxOperationRange = fCapacityUnit    
+            
+            # assumpe max operative reserve for CHP is 10% capacity
+            if "CHP" in objProcess.sProcessName:
+                fMaxOperationRange = fCapacityUnit / 10            
+            
+            fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[1]
+            fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+                
+            # allocate one unit to regulation
+            objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+            objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] -= fMaxRampCapacity 
 
-            if objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] == 0 : # the process has to be commited
-                    if "NUK" not in objProcess.sProcessName and "CHP" not in objProcess.sProcessName:
-                        # check if previous allocated
-                        if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                            + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                            # check if previous allocated
-                            fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) * 10
-                            fTotalRampUp = min(objProcess.Capacity, fTotalRampUp) # assumpe max operative reserve is 10% capacity
-                            objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] = fTotalRampUp
-                            objZone.fASDfc10MinReserve_TS_YS[indexTS, indexYS] -= objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS]
-                            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
-            else:
-                break
-
+            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
+            
     return
 
 
@@ -342,59 +307,50 @@ def allocate10MinReserve_nonspin(instance, objMarket, objZone, lsProcess, indexT
 # -------------------- 30 minutes reserve ------------------------------------
 # ----------------------------------------------------------------------------
 
-def allocate30MinReserve_spin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
+def allocate30MinReserve_spin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 30 min operational reserve capacity of the zone, and calculate deficit '''
     
-    objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] = objZone.fASRqr30MinReserve_TS_YS[indexTS, indexYS]
+    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
 
-    lsProcessIndex = objMarket.lsAncSerProcessIndex
-    
     # dispatchable process
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
-
-            if objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] != 0 : # the process has to be commited
-                    if "CHP" not in objProcess.sProcessName:
-                        # check if previous allocated
-                        if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                                + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                            fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) * 30
-                            fTotalRampUp = min(objProcess.Capacity/10, fTotalRampUp) # assumpe max operative reserve is 10% capacity
-                            objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS] = fTotalRampUp
-                            objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] -= objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]
-            else:
-                break
+    if objProcess.sOperationMode in ["Dispatch"]:
+                
+        # assumpe max operative reserve is 10% capacity
+        fMaxOperationRange = fCapacityUnit / 10        
+        fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[2]
+        fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+            
+        # allocate one unit to regulation
+        objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+        objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] -= fMaxRampCapacity 
 
     return
 
 
-def allocate30MinReserve_nonspin(instance, objMarket, objZone, lsProcess, indexTS, indexYS):
+def allocate30MinReserve_nonspin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 30 min operational reserve capacity of the zone, and calculate deficit '''
 
-    lsProcessIndex = objMarket.lsAncSerProcessIndex
+    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
     
     # dispatchable process
-    for objProcessIndex in lsProcessIndex:
-        if objZone.sZone ==  objMarket.lsZone[objProcessIndex.indexZone].sZone:
-            objProcess = lsProcess[objProcessIndex.indexProcess]
+    if objProcess.sOperationMode in ["Dispatch"]:
+        if "NUK" not in objProcess.sProcessName:
             
-            if objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] > 0.001:
-                if objProcess.sOperationMode in ["Dispatch"] and \
-                objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] == 0 : # the process has to be commited
-                    if "CHP" not in objProcess.sProcessName:
-                        # check if previous allocated
-                        if (objProcess.fASRegulation_TS_YS[indexTS, indexYS] + objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] \
-                            + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]) == 0:
-                            fTotalRampUp = objProcess.Capacity * (objProcess.RampRatePerM/100) * 30
-                            fTotalRampUp = min(objProcess.Capacity, fTotalRampUp) # assumpe max operative reserve is 10% capacity
-                            objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS] = fTotalRampUp
-                            objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] -= objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]
-                            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
-            else:
-                break
+            # assumpe max operative reserve is 100% capacity
+            fMaxOperationRange = fCapacityUnit
+            
+            # assumpe max operative reserve for CHP is 10% capacity
+            if "CHP" in objProcess.sProcessName:
+                fMaxOperationRange = fCapacityUnit / 10
+                
+            fMaxRampUp = fCapacityUnit * (objProcess.RampRatePerM/100) * EquASMultiplier[2]
+            fMaxRampCapacity = min(fMaxOperationRange, fMaxRampUp)
+                
+            # allocate one unit to regulation
+            objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS] += fMaxRampCapacity
+            objZone.fASDfc30MinReserve_TS_YS[indexTS, indexYS] -= fMaxRampCapacity 
+
+            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
 
     return
 
