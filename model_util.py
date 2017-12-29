@@ -14,7 +14,7 @@ def model_fisrt_Init(objMarket, instance):
     ''' market initiation in first iteration '''
     
     # first time to run of the model (base year, and no output)
-    if instance.iForesightStartYear == instance.iBaseYear and objMarket.MarketOutput.dicGenCapacity_YR_TC == {} :
+    if instance.iForesightStartYear == instance.iBaseYear and objMarket.MarketOutput.dicGenCapacity_YS_PR == {} :
 
         # create zone variables
         for objZone in objMarket.lsZone:
@@ -78,7 +78,6 @@ def createProcessVar(instance, lsProcess):
         objProcess.fGenerationCost_YS = np.zeros(len(instance.iAllYearSteps_YS))
 
         objProcess.fAnnualFixedCostPerMW = 0
-        objProcess.fPriceMarkUp = 0
 
         objProcess.fAnnualInvestment_YS = np.zeros(len(instance.iAllYearSteps_YS))
 
@@ -128,7 +127,7 @@ def MarketAgent_Init(objMarket, instance):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# model_iter_Init
+# model_iter_Init (only do once at the start of each whole foresight period iteration)
 # ----------------------------------------------------------------------------------------------------------------------
     
 def model_iter_Init(objMarket, instance):
@@ -146,7 +145,7 @@ def model_iter_Init(objMarket, instance):
         ZoneProcess_Init(objZone.lsProcess)
         
     # assign ancillary service in the market
-    ZoneAncillaryServiceReq_Init(objMarket, instance)
+    ZoneAncillaryServiceReq_Init(objMarket, instance, instance.iFSBaseYearIndex)
     
     return
 
@@ -173,7 +172,7 @@ def ZoneDemand_iter_Init(instance, objZone):
 
 
 def ZoneProcess_Commit(instance, objMarket):
-    ''' move commit or decommit process '''
+    ''' move commit or decommit process (only do once at the start of each whole foresight period iteration) '''
     
     for objZone in objMarket.lsZone:
         # move decommited plant into decommitioned list 
@@ -229,7 +228,7 @@ def ZoneProcess_Init(lsProcess):
 
 
 
-def ZoneAncillaryServiceReq_Init(objMarket, instance):
+def ZoneAncillaryServiceReq_Init(objMarket, instance, indexYS):
     ''' assign ancillary service requirement in each zone of the market '''
     
     fMarketTotalDemand_TS_YS = np.zeros( (len(instance.lsTimeSlice), len(instance.iAllYearSteps_YS)) )
@@ -247,17 +246,17 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
             # find the highest demand in the day
             fDailyHighestDemand = 0
             for objDayTS in objDay.lsDiurnalTS:
-                fZoneDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
+                fZoneDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, indexYS]
                 if fZoneDemand > fDailyHighestDemand:
                     fDailyHighestDemand = fZoneDemand
 
             # calculate the required regulation in the day
             fRegulationRequire = 0  # MW
             if fDailyHighestDemand > 0:
-                fRegulationRequire = fDailyHighestDemand * objMarket.fRegulationRequire_YS[instance.iFSBaseYearIndex] / 100
+                fRegulationRequire = fDailyHighestDemand * objMarket.fRegulationRequire_YS[indexYS] / 100
             
             for objDayTS in objDay.lsDiurnalTS:
-                objZone.fASRqrRegulation_TS_YS[objDayTS.iTimeSliceIndex,instance.iFSBaseYearIndex] = fRegulationRequire
+                objZone.fASRqrRegulation_TS_YS[objDayTS.iTimeSliceIndex,indexYS] = fRegulationRequire
                     
     # --------------------------------------------------------    
     # -------- 10 and 30 Minutes Reserve requirement --------
@@ -273,14 +272,14 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
         # find the highest demand in the day
         fDailyHighestDemand = 0
         for objDayTS in objDay.lsDiurnalTS:
-            fMarketDemand = fMarketTotalDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
+            fMarketDemand = fMarketTotalDemand_TS_YS[objDayTS.iTimeSliceIndex, indexYS]
             if fMarketDemand > fDailyHighestDemand:
                 fDailyHighestDemand = fMarketDemand 
                 
         # calculate daily required reserve capacity in the market
         for objDayTS in objDay.lsDiurnalTS:
-            f10mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f10mReserve_YS[instance.iFSBaseYearIndex] / 100
-            f30mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f30mReserve_YS[instance.iFSBaseYearIndex] / 100
+            f10mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f10mReserve_YS[indexYS] / 100
+            f30mReserve_TS[objDayTS.iTimeSliceIndex] = fDailyHighestDemand * objMarket.f30mReserve_YS[indexYS] / 100
 
     # get the biggest operating unit capacity of the zones
     fBiggestUnitCapacity_ZN = np.zeros(len(objMarket.lsZone))
@@ -293,7 +292,6 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
                     fBiggetUnitCapacity = fUnitCapacity
         fBiggestUnitCapacity_ZN[indexZone] = fBiggetUnitCapacity
 
-
     lsDayTimeSlice = list(instance.lsDayTimeSlice)
     for objDay in lsDayTimeSlice:
 
@@ -302,8 +300,8 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
         for indexZone, objZone in enumerate(objMarket.lsZone):
             fPeakDemand = 0  # MW
             for objDayTS in objDay.lsDiurnalTS:
-                if objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] > fPeakDemand:
-                    fPeakDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex]
+                if objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, indexYS] > fPeakDemand:
+                    fPeakDemand = objZone.fPowerDemand_TS_YS[objDayTS.iTimeSliceIndex, indexYS]
             fPeakDemand_ZN[indexZone] = fPeakDemand
                     
         # ----------- assignment 10 minutes reserve capacity -----------
@@ -315,7 +313,7 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
             for objDayTS in objDay.lsDiurnalTS:
                 fAssignedCapacity_ZN[indexZone] += fBiggestUnitCapacity_ZN[indexZone] / 2
                 f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexZone] / 2
-                objZone.fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += fBiggestUnitCapacity_ZN[indexZone] / 2
+                objZone.fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] += fBiggestUnitCapacity_ZN[indexZone] / 2
                     
         # allocate the rest required reserve capacity
         bReserveAssignment = True
@@ -329,12 +327,12 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
                     if fZoneReserveRatio < fLowestReserveRatio and fBiggestUnitCapacity_ZN[indexZone] > 0:
                         fLowestReserveRatio = fZoneReserveRatio
                         indexLowestReserveZone = indexZone
-                # assign reserve capacity to the region
-                fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                # assign reserve capacity to the region (half of the biggest capacity)
+                fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone] / 2
                 for objDayTS in objDay.lsDiurnalTS:
-                    f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone]
-                    objMarket.lsZone[indexLowestReserveZone].fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += \
-                    fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                    f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone] / 2
+                    objMarket.lsZone[indexLowestReserveZone].fASRqr10MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] += \
+                    fBiggestUnitCapacity_ZN[indexLowestReserveZone] / 2
             else:
                 bReserveAssignment = False
                 # reserve capacity assignment is done
@@ -346,8 +344,8 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
         for indexZone, objZone in enumerate(objMarket.lsZone):
             for objDayTS in objDay.lsDiurnalTS:
                 fAssignedCapacity_ZN[indexZone] += fBiggestUnitCapacity_ZN[indexZone]
-                f10mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexZone]
-                objZone.fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += fBiggestUnitCapacity_ZN[indexZone]
+                f30mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexZone]
+                objZone.fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] += fBiggestUnitCapacity_ZN[indexZone]
                 
         # allocate the rest required reserve capacity
         bReserveAssignment = True
@@ -358,15 +356,15 @@ def ZoneAncillaryServiceReq_Init(objMarket, instance):
                 fLowestReserveRatio = 99999
                 for indexZone, objZone in enumerate(objMarket.lsZone):
                     fZoneReserveRatio = fAssignedCapacity_ZN[indexZone] / fPeakDemand_ZN[indexZone]
-                    if fZoneReserveRatio < fLowestReserveRatio and fBiggestUnitCapacity_ZN[indexZone] > 0:
+                    if fZoneReserveRatio < fLowestReserveRatio and fBiggestUnitCapacity_ZN[indexZone] > 0.001:
                         fLowestReserveRatio = fZoneReserveRatio
                         indexLowestReserveZone = indexZone
-                # assign reserve capacity to the region
-                fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                # assign reserve capacity to the region (half of the biggest capacity)
+                fAssignedCapacity_ZN[indexLowestReserveZone] += fBiggestUnitCapacity_ZN[indexLowestReserveZone] / 2
                 for objDayTS in objDay.lsDiurnalTS:
-                    f30mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone]
-                    objMarket.lsZone[indexLowestReserveZone].fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, instance.iFSBaseYearIndex] += \
-                    fBiggestUnitCapacity_ZN[indexLowestReserveZone]
+                    f30mReserve_TS[objDayTS.iTimeSliceIndex] -= fBiggestUnitCapacity_ZN[indexLowestReserveZone] / 2
+                    objMarket.lsZone[indexLowestReserveZone].fASRqr30MinReserve_TS_YS[objDayTS.iTimeSliceIndex, indexYS] += \
+                    fBiggestUnitCapacity_ZN[indexLowestReserveZone] / 2
             else:
                 bReserveAssignment = False
                 # reserve capacity assignment is done
@@ -636,7 +634,7 @@ def getNewBuildCapacityLimit(instance, objZone, lsProcess, lsProcessPlanned, lsP
     ''' total allowed new build capacity according to capacity constraints '''
     
     iYearStep = instance.iAllYearSteps_YS[indexYS]
-    lsOperationalPlants = getOperationalProcessList(lsProcess, lsProcessPlanned, iYearStep)
+    lsOperationalPlants = getOperationalProcessList_DeepCopy(lsProcess, lsProcessPlanned, iYearStep)
 
     for indexTC, objProcess in enumerate(lsProcessCandidate):
         sProcessName = objProcess.sProcessName
@@ -658,7 +656,7 @@ def getNewBuildCapacityLimit(instance, objZone, lsProcess, lsProcessPlanned, lsP
     return
 
 
-def getOperationalProcessList(lsProcess, lsProcessPlanned, iYearStep):
+def getOperationalProcessList_DeepCopy(lsProcess, lsProcessPlanned, iYearStep):
     ''' return a combined process list which are in operation in the given year step '''
     
     listOperationalPlants = list()
@@ -672,6 +670,24 @@ def getOperationalProcessList(lsProcess, lsProcessPlanned, iYearStep):
             listOperationalPlants.append(copy.deepcopy(objPlant))
 
     return listOperationalPlants
+
+
+def getOperationalProcessList_ShallowCopy(lsProcess, lsProcessPlanned, iYearStep):
+    ''' return a combined process list which are in operation in the given year step '''
+    # do not change anything on the original objZone.lsProcess
+    
+    listOperationalPlants = list()
+
+    for indexP, objPlant in enumerate(lsProcess):
+        if objPlant.DeCommitTime > iYearStep and objPlant.CommitTime <= iYearStep:
+            listOperationalPlants.append(copy.copy(objPlant))
+
+    for indexP, objPlant in enumerate(lsProcessPlanned):
+        if objPlant.DeCommitTime > iYearStep and objPlant.CommitTime <= iYearStep:
+            listOperationalPlants.append(copy.copy(objPlant))
+
+    return listOperationalPlants
+
 
 
 def getCapacityConstraints(instance, objZone, sProcessName, indexYS):

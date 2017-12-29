@@ -33,12 +33,6 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
         objMarketDup.lsDispatchProcessIndex = sorted(objMarketDup.lsDispatchProcessIndex, key=lambda lsDispatchProcessIndex: \
                                                   lsDispatchProcessIndex.fVariableGenCost_TS[iHighestTSIndex])        
         
-        # add required ancillary service capacity to residual demand 
-        for objZone in objMarketDup.lsZone:
-            objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqrRegulation_TS_YS[iHighestTSIndex,indexYS]
-            objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr10MinReserve_TS_YS[iHighestTSIndex,indexYS]
-            objZone.fPowerResDemand_TS_YS[iHighestTSIndex,indexYS] += objZone.fASRqr30MinReserve_TS_YS[iHighestTSIndex,indexYS]
-        
         # dispatch the time-slice with highest residual demand (this step make sure a lower bound of reliability requirement)
         for objProcessIndex in objMarketDup.lsDispatchProcessIndex:
             objDispatchZone = objMarketDup.lsZone[objProcessIndex.indexZone]
@@ -49,6 +43,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                 lsProcess = objDispatchZone.lsProcessOperTemp
                 
             objDispatchProcess = lsProcess[objProcessIndex.indexProcess]
+            # the ancillary service hasn't allocated
             model_util_gen.dispatch_thermalUnit_TS(instance, objMarketDup, objDispatchZone, objDispatchProcess, iHighestTSIndex, indexYS)
 
         # list of all ramp up facilities
@@ -87,6 +82,10 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                 if objZone.sZone ==  objMarketDup.lsZone[objProcessIndex.indexZone].sZone:
                     objProcess = lsProcess[objProcessIndex.indexProcess]
                     if objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] != 0: # the process has NOT be commited
+                        
+                        if sMode == "PlanMode" and objProcess.sProcessID == "AUSTRIA_OIL_ST_1992": 
+                            print()
+                        
                         for iUnit in range(int(objProcess.NoUnit)):
                             
                             if objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] > 0.001:
@@ -185,7 +184,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
 def allocateRegulationCapacity_spin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate regulation capacity of the zone, and calculate deficit '''
 
-    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+    fCapacityUnit = objProcess.fDeratedCapacity / objProcess.NoUnit
 
     # storage and limited dispatchable
     if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
@@ -218,7 +217,7 @@ def allocateRegulationCapacity_spin(instance, objZone, objProcess, indexTS, inde
 def allocateRegulationCapacity_nonspin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate regulation capacity of the zone, and calculate deficit '''
 
-    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+    fCapacityUnit = objProcess.fDeratedCapacity / objProcess.NoUnit
     
     # dispatchable process
     if objProcess.sOperationMode in ["Dispatch"]:
@@ -245,7 +244,7 @@ def allocateRegulationCapacity_nonspin(instance, objZone, objProcess, indexTS, i
 def allocate10MinReserve_spin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 10 min operational reserve capacity of the zone, and calculate deficit '''
     
-    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+    fCapacityUnit = objProcess.fDeratedCapacity / objProcess.NoUnit
 
     # storage and limited dispatchable
     if objProcess.sOperationMode in ["LimitDispatch","Storage"]:
@@ -278,7 +277,7 @@ def allocate10MinReserve_spin(instance, objZone, objProcess, indexTS, indexYS):
 def allocate10MinReserve_nonspin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 10 min operational reserve capacity of the zone, and calculate deficit '''
 
-    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+    fCapacityUnit = objProcess.fDeratedCapacity / objProcess.NoUnit
     
     # dispatchable process
     if objProcess.sOperationMode in ["Dispatch"]:
@@ -310,7 +309,7 @@ def allocate10MinReserve_nonspin(instance, objZone, objProcess, indexTS, indexYS
 def allocate30MinReserve_spin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 30 min operational reserve capacity of the zone, and calculate deficit '''
     
-    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+    fCapacityUnit = objProcess.fDeratedCapacity / objProcess.NoUnit
 
     # dispatchable process
     if objProcess.sOperationMode in ["Dispatch"]:
@@ -330,7 +329,7 @@ def allocate30MinReserve_spin(instance, objZone, objProcess, indexTS, indexYS):
 def allocate30MinReserve_nonspin(instance, objZone, objProcess, indexTS, indexYS):
     ''' allocate 30 min operational reserve capacity of the zone, and calculate deficit '''
 
-    fCapacityUnit = objProcess.Capacity / objProcess.NoUnit
+    fCapacityUnit = objProcess.fDeratedCapacity / objProcess.NoUnit
     
     # dispatchable process
     if objProcess.sOperationMode in ["Dispatch"]:

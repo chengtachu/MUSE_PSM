@@ -114,6 +114,13 @@ def get_ZoneExistProcess(instance, objZone):
                 objZoneProcess.sFuel = objProcessDef.sFuel
                 objZoneProcess.sOperationMode = objProcessDef.sOperationMode
                 break
+            
+        # change plant commision time, align to closest time step year
+        if objZoneProcess.CommitTime >= instance.iBaseYear:
+            for iYearStep in instance.iAllYearSteps_YS:
+                if iYearStep >= objZoneProcess.CommitTime:
+                    objZoneProcess.CommitTime = iYearStep
+                    break
 
         objZone.lsProcess.append(objZoneProcess)
 

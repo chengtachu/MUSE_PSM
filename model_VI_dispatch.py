@@ -35,10 +35,10 @@ def dispatch_Main(objMarket, instance, indexYearStep):
         
     # thermal generation unit commitment
     model_util_unitcom.unitCommitment(instance, objMarket, indexYearStep, "ExecMode")
-    
+                            
     # dispatch main algorithm
     model_util_gen.dispatch_thermalUnit(instance, objMarket, indexYearStep, "ExecMode")
-
+    
     # initiate nodal price
     model_util.nodeprice_Init(instance, objMarket, indexYearStep, "ExecMode")
 

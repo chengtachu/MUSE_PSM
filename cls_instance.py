@@ -153,7 +153,7 @@ class Instance:
     def get_ZoneAssumption(self):
         """ load zone assumptions """
         
-        for objMarket in self.lsMarket:
+        for indexMarket, objMarket in enumerate(self.lsMarket):
             for objZone in objMarket.lsZone:
                 
                 # import zone technical assumptoin
@@ -165,6 +165,7 @@ class Instance:
                         if objZone.sZone in objCountry.sZone_ZN:
                             objZone.iRegionIndex = indexRegion
                             objZone.iCountryIndex = indexCountry
+                            objZone.iMarketIndex = indexMarket
                 
                 # copy available process
                 io_import_market.get_ZoneProcessAvail(self, objZone)

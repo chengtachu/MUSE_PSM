@@ -8,6 +8,7 @@ class Zone:
         self.sZone = Zone
         self.iRegionIndex = 0
         self.iCountryIndex = 0
+        self.iMarketIndex = 0
         self.lsProcessAssump = list()       # a list of process assumption in this zone
         self.lsProcess = list()             # a list of exist process in current modelling
         self.lsProcessPlanned = list()       # a list of planned process
@@ -20,7 +21,7 @@ class Zone:
         self.lsNewCHPCandidate = list()     # new CHP technology candidate list only for capacity plannign/investment simulation
         self.fMarginalGenCost_TS_YS = None
         self.fNodalPrice_TS_YS = None
-        self.CountryOutput = CountryOutput()
+        self.ZoneOutput = ZoneOutput()
         
         ''' assumptions '''
         # fPowerDistLossRate_YS         # %
@@ -56,44 +57,57 @@ class Zone:
         return
 
 
-class CountryOutput:
+class ZoneOutput:
 
     def __init__(self):
 
         ##### model variable output
 
-        self.dicGenCapacity_YR_TC = {}
-        self.dicGenNewCapacity_YR_TC = {}
+        self.dicGenCapacity_YS_PR = {}
+        self.dicGenNewCapacity_YS_PR = {}
 
-        self.dicGeneration_YR_TS_TC = {}
-        self.dicPowerOutput_YR_TS_TC = {}
-        self.dicStrgInput_YR_TS_ST = {}
-        self.dicStrgOutput_YR_TS_ST = {}
+        self.dicPowerGen_YS_TS_PR = {}
+        self.dicPowerOutput_YS_TS_PR = {}
+        self.dicHeatGen_YS_TS_PR = {}
+        self.dicHeatOutput_YS_TS_PR = {}
+        self.dicStrgInput_YS_TS_ST = {}
+        self.dicStrgOutput_YS_TS_ST = {}
 
-        self.dicGenCAPEX_YR_TC = {}
-        self.dicGenOPEX_YR_TC = {}
-        self.dicEmissionCost_YR_TC = {}
-        self.dicFuelCost_YR_TC = {}
-        self.dicRunningCost_YR_TC = {}
-        self.dicYearInvest_YR_TC = {}
+        self.dicGenCAPEX_YS_PR = {}
+        self.dicGenOPEX_YS_PR = {}
+        self.dicEmissionCost_YS_PR = {}
+        self.dicFuelCost_YS_PR = {}
+        self.dicRunningCost_YS_PR = {}
+        self.dicYearInvest_YS_PR = {}
 
-        self.dicFuelConsum_YR_TS_TC = {}
+        self.dicFuelConsum_YS_TS_PR = {}
+
+        self.dicAncSerRegulation_YS_TS = {}
+        self.dicAncSer10MinReserve_YS_TS = {}
+        self.dicAncSer30MinReserve_YS_TS = {}
+
+        self.dicPctCapacityCommit_YS_TS_PR = {}
+        self.dicPctCapacityGenerate_YS_TS_PR = {}
+        self.dicPctCapacityAncSer_YS_TS_PR = {}
 
         ##### model endogenous output
 
-        self.dicGeneration_YR_TS = {}
-        self.dicGenTechCost_YR_TC = {}
-        self.dicGenCost_YR_TS = {}
-        self.dicGenWholeSalePrice_YR_TS = {}
+        self.dicZonePowerGen_YS_TS = {}
+        self.dicZoneHeatGen_YS_TS = {}
+        self.dicProcessLCOE_YS_PR = {}
+        self.dicPowerGenCost_YS_TS = {}
+        self.dicPowerWholeSalePrice_YS_TS = {}
 
-        self.dicCO2Emission_YR = {}
-        self.dicCO2Emission_YR_TS = {}
-        self.dicEmissionCaptured_YR_TS = {}
-        self.dicFuelConsum_YR_TS_CR = {}       
+        self.dicCO2Emission_YS = {}
+        self.dicCO2Emission_YS_TS = {}
+        self.dicEmissionCaptured_YS_TS = {}
+        self.dicFuelConsum_YS_TS_CM = {}       
 
+        '''
         ##### ABM model
-        self.dicDAMNodalPrice_YR_TS = {}
-        self.dicRTMNodalPrice_YR_TS = {}
+        self.dicDAMNodalPrice_YS_TS = {}
+        self.dicRTMNodalPrice_YS_TS = {}
+        '''
 
         return
 

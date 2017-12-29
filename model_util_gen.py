@@ -194,6 +194,7 @@ def dispatch_thermalUnit(instance, objMarket, indexYS, sMode):
                 fOverGeneration = model_util_trans.checkPowerOverGeneration(objMarket, objZone, indexTS, indexYS)
                 if fOverGeneration > 0:
 
+                    # reduce the generation from the one with highest variable generation cost
                     for objProcessIndex in reversed(objMarket.lsDispatchProcessIndex):
                         objZoneP = objMarket.lsZone[objProcessIndex.indexZone]
                     
@@ -229,35 +230,37 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
     ''' dispatch thermal units for only given time slice '''
 
     fMustRunOutput = objProcess.fDeratedCapacity * (objProcess.MinLoadRate / 100)
+    fAllocatedAncSer = objProcess.fASRegulation_TS_YS[indexTS, indexYS] + \
+        objProcess.fAS10MinReserve_TS_YS[indexTS, indexYS] + objProcess.fAS30MinReserve_TS_YS[indexTS, indexYS]
     fExportOutput = 0
 
     if objZone.fPowerResDemand_TS_YS[indexTS, indexYS] > 0.001:
-        
+
         # ------ commit this process --------------------------
-        objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 
+        objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2
         # -----------------------------------------------------
-        
+
         if fMustRunOutput > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
             # residual demand can be served within minimal load range
             objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = fMustRunOutput
-            fExportOutput = fMustRunOutput - objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
+            fExportOutput = fMustRunOutput - fAllocatedAncSer - objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
             objZone.fPowerOutput_TS_YS[indexTS,indexYS] += fMustRunOutput
             objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = 0
-        elif objProcess.fDeratedCapacity > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
+        elif (objProcess.fDeratedCapacity - fAllocatedAncSer) > objZone.fPowerResDemand_TS_YS[indexTS, indexYS]:   # MW
             # residual demand is within dispatchable range
             objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
             objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objZone.fPowerResDemand_TS_YS[indexTS, indexYS]
             objZone.fPowerResDemand_TS_YS[indexTS, indexYS] = 0
-            fExportOutput = objProcess.fDeratedCapacity - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS]
+            fExportOutput = (objProcess.fDeratedCapacity - fAllocatedAncSer) - objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS]
         else:
             # dispatch all output for local demand
-            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = objProcess.fDeratedCapacity
-            objZone.fPowerResDemand_TS_YS[indexTS, indexYS] -= objProcess.fDeratedCapacity
-            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += objProcess.fDeratedCapacity
-            
+            objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = (objProcess.fDeratedCapacity - fAllocatedAncSer)
+            objZone.fPowerResDemand_TS_YS[indexTS, indexYS] -= (objProcess.fDeratedCapacity - fAllocatedAncSer)
+            objZone.fPowerOutput_TS_YS[indexTS,indexYS] += (objProcess.fDeratedCapacity - fAllocatedAncSer)
+
     else :
         # no local residual demand, check export
-        fExportOutput = objProcess.fDeratedCapacity
+        fExportOutput = (objProcess.fDeratedCapacity - fAllocatedAncSer)
 
     # export the generation (local residual demand has to be 0 here)
     while fExportOutput > 1:

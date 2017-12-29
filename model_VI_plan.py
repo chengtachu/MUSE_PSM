@@ -21,13 +21,8 @@ def calInvestmentPlanning(objMarket, instance):
         if iYearStep > instance.iForesightStartYear:
             indexYear = indexYS + instance.iFSBaseYearIndex
     
-            #--------------------------------------------------------------
-            # update ancillary service requirement
-            for objZone in objMarket.lsZone:
-                # keep the same level for now
-                objZone.fASRqrRegulation_TS_YS[:,indexYS] = objZone.fASRqrRegulation_TS_YS[:,indexYS-1]
-                objZone.fASRqr10MinReserve_TS_YS[:,indexYS] = objZone.fASRqr10MinReserve_TS_YS[:,indexYS-1]
-                objZone.fASRqr30MinReserve_TS_YS[:,indexYS] = objZone.fASRqr30MinReserve_TS_YS[:,indexYS-1]
+            # update required ancillary service in the market
+            model_util.ZoneAncillaryServiceReq_Init(objMarket, instance, indexYS)
                 
             #--------------------------------------------------------------
             # creat candidate new technology plant list
@@ -54,7 +49,7 @@ def calInvestmentPlanning(objMarket, instance):
                 
             # compile(copy) a operational power generation process list
             for objZone in objMarket.lsZone:
-                objZone.lsProcessOperTemp = model_util.getOperationalProcessList(objZone.lsProcess, objZone.lsProcessPlanned, iYearStep)
+                objZone.lsProcessOperTemp = model_util.getOperationalProcessList_DeepCopy(objZone.lsProcess, objZone.lsProcessPlanned, iYearStep)
             
             #--------------------------------------------------------------
             # CHP investment (we assume heat does not trade cross-zone)
@@ -125,44 +120,20 @@ def calInvestmentPlanning(objMarket, instance):
             # initial dispatch for planning
             model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)      
             
-            for objZone in objMarket.lsZone:
-                bReachASReruirement = False
-                while (not bReachASReruirement):
+            bReachASReruirement = False
+            while (not bReachASReruirement):
 
-                    # check the deficit and install new units
-                    bInstallNewUnit = checkAndInstallAncillaryService(instance, objZone, indexYear)
+                # check the deficit and install new units
+                bInstallNewUnit = checkAndInstallAncillaryService(instance, objMarket, indexYear)
 
-                    if bInstallNewUnit == True:
-                        # re-dispatch
-                        model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
-                        
-                        iTS = 17
-                        for objZonePrint in objMarket.lsZone:
-                            fTotalExport = 0
-                            for objTrans in objMarket.lsTransmission:
-                                if objTrans.From == objZonePrint.sZone:
-                                    fTotalExport += objTrans.fTransLineInput_TS_YS[iTS,indexYear]
-                            fTotalImport = 0
-                            for objTrans in objMarket.lsTransmission:
-                                if objTrans.To == objZonePrint.sZone:
-                                    fTotalImport += objTrans.fTransLineOutput_TS_YS[iTS,indexYear]               
-                            print(" ")
-                            print(objZonePrint.sZone, objZonePrint.fPowerDemand_TS_YS[iTS,indexYear],\
-                                  objZonePrint.fPowerOutput_TS_YS[iTS,indexYear],objZonePrint.fPowerResDemand_TS_YS[iTS,indexYear],fTotalExport,fTotalImport)
-                            print("Req AS", objZonePrint.fASRqrRegulation_TS_YS[iTS, indexYear], \
-                                  objZonePrint.fASRqr10MinReserve_TS_YS[iTS, indexYear], objZonePrint.fASRqr30MinReserve_TS_YS[iTS, indexYear])
-                            print("Res AS", objZonePrint.fASDfcRegulation_TS_YS[iTS, indexYear], \
-                                  objZonePrint.fASDfc10MinReserve_TS_YS[iTS, indexYear], objZonePrint.fASDfc30MinReserve_TS_YS[iTS, indexYear])
-                            for objProcess in objZonePrint.lsProcessOperTemp:
-                                print(objProcess.sProcessName, objProcess.Capacity,\
-                                      objProcess.fHourlyPowerOutput_TS_YS[iTS,indexYear], objProcess.iOperatoinStatus_TS_YS[iTS,indexYear],\
-                                      objProcess.fASRegulation_TS_YS[iTS,indexYear],objProcess.fAS10MinReserve_TS_YS[iTS,indexYear],objProcess.fAS30MinReserve_TS_YS[iTS,indexYear])  
-                                
-                        print("")
-                
-                    else:
-                        bReachASReruirement = True
-                        break 
+                if bInstallNewUnit == True:
+                    # re-dispatch
+                    model_VI_dispatch.dispatch_Plan(instance, objMarket, indexYear)
+                else:
+                    bReachASReruirement = True
+                    break 
+        
+        print("Finish planning ", objMarket.sMarket, " for ", iYearStep)
         
     return
 
@@ -231,6 +202,7 @@ def calAllNewPowerPlantLCOE(instance, objMarket, indexYear):
                 fPlantTotalGeneration = np.zeros(len(instance.lsTimeSlice))   # MWh
                 for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice): 
 
+                    # do not consider ancillary service here
                     fMaxGeneration = objNewProcessCandidate.fDeratedCapacity  # MW available dispatch volulme
                     if objNewProcessCandidate.sOperationMode in ["NonDispatch","LimitDispatch"]:
                         fMaxGeneration = objNewProcessCandidate.fHourlyPowerOutput_TS_YS[indexTS, indexYear]
@@ -444,43 +416,60 @@ def checkAllDemandServed(instance, objMarket, indexYear):
 
 
 
-def checkAndInstallAncillaryService(instance, objZone, indexYear):
+def checkAndInstallAncillaryService(instance, objMarket, indexYear):
     ''' check the deficit and install new units '''
 
-    fMaxDefRegulationPerM = np.max(objZone.fASDfcRegulation_TS_YS[:, indexYear]) * 2  # 30 second regulation
-    fMaxDef10MinReservePerM = np.max(objZone.fASDfc10MinReserve_TS_YS[:, indexYear]) / 10  # 10 second regulation
-    fMaxDef30MinReservePerM = np.max(objZone.fASDfc30MinReserve_TS_YS[:, indexYear]) / 30  # 30 second regulation
-
-    # sort variable generation cost of the day (by the first timeslice of the day)
-    objZone.lsNewProcessCandidate = sorted(objZone.lsNewProcessCandidate, key=lambda lsNewProcessCandidate: lsNewProcessCandidate.RampRatePerM, reverse=True)
-
-    indexNewInstall = -1
-    for indexProcess, objNewProcess in enumerate(objZone.lsNewProcessCandidate):
-        if objNewProcess.fMaxAllowedNewBuildCapacity > objNewProcess.Capacity:
-            if fMaxDefRegulationPerM > 0.001:
-                # exclude nuclear and CHP for regulation
-                if "NUK" not in objNewProcess.sProcessName and "CHP" not in objNewProcess.sProcessName:
-                    indexNewInstall = indexProcess
-                        
-            elif fMaxDef10MinReservePerM > 0.001:
-                # exclude nuclear and CHP for regulation
-                if "NUK" not in objNewProcess.sProcessName and "CHP" not in objNewProcess.sProcessName:
-                    indexNewInstall = indexProcess
-                        
-            elif fMaxDef30MinReservePerM > 0.001:
-                # exclude nuclear and CHP for regulation
-                if "CHP" not in objNewProcess.sProcessName:
-                    indexNewInstall = indexProcess
-            if indexNewInstall != -1:
-                break
-                
-    if indexNewInstall != -1:
+    fZoneASCapacityDeficit_ZN = np.zeros(len(objMarket.lsZone))
+    for indexZone, objZone in enumerate(objMarket.lsZone):
         
-        print("install AS", indexYear, objZone.sZone, objZone.lsNewProcessCandidate[indexNewInstall].sProcessName, \
-              objZone.lsNewProcessCandidate[indexNewInstall].Capacity)
-                
-        installNewPlant(instance, objZone, objZone.lsNewProcessCandidate[indexNewInstall], indexYear)
-        bInstallNewUnit = True
+        fMaxDefRegulationPerM = np.max(objZone.fASDfcRegulation_TS_YS[:, indexYear]) * 2  # 30 second regulation
+        fMaxDef10MinReservePerM = np.max(objZone.fASDfc10MinReserve_TS_YS[:, indexYear]) / 10  # 10 second regulation
+        fMaxDef30MinReservePerM = np.max(objZone.fASDfc30MinReserve_TS_YS[:, indexYear]) / 30  # 30 second regulation        
+        
+        fZoneASCapacityDeficit_ZN[indexZone] = np.max([fMaxDefRegulationPerM, fMaxDef10MinReservePerM, fMaxDef30MinReservePerM])
+        
+    # select the zone with hightest AS capacity deficit
+    indexTargetZone = np.argmax(fZoneASCapacityDeficit_ZN[:])
+    
+    if fZoneASCapacityDeficit_ZN[indexTargetZone] > 0.001:
+        objZone = objMarket.lsZone[indexTargetZone]
+                    
+        fMaxDefRegulationPerM = np.max(objZone.fASDfcRegulation_TS_YS[:, indexYear]) * 2  # 30 second regulation
+        fMaxDef10MinReservePerM = np.max(objZone.fASDfc10MinReserve_TS_YS[:, indexYear]) / 10  # 10 second regulation
+        fMaxDef30MinReservePerM = np.max(objZone.fASDfc30MinReserve_TS_YS[:, indexYear]) / 30  # 30 second regulation
+    
+        # sort ramp ability
+        objZone.lsNewProcessCandidate = sorted(objZone.lsNewProcessCandidate, key=lambda lsNewProcessCandidate: lsNewProcessCandidate.RampRatePerM, reverse=True)
+    
+        indexNewInstall = -1
+        for indexProcess, objNewProcess in enumerate(objZone.lsNewProcessCandidate):
+            if objNewProcess.fMaxAllowedNewBuildCapacity > objNewProcess.Capacity:
+                if fMaxDefRegulationPerM > 0.001:
+                    # exclude nuclear and CHP for regulation
+                    if "NUK" not in objNewProcess.sProcessName and "CHP" not in objNewProcess.sProcessName:
+                        indexNewInstall = indexProcess
+                            
+                elif fMaxDef10MinReservePerM > 0.001:
+                    # exclude nuclear and CHP for regulation
+                    if "NUK" not in objNewProcess.sProcessName and "CHP" not in objNewProcess.sProcessName:
+                        indexNewInstall = indexProcess
+                            
+                elif fMaxDef30MinReservePerM > 0.001:
+                    # exclude nuclear and CHP for regulation
+                    if "CHP" not in objNewProcess.sProcessName:
+                        indexNewInstall = indexProcess
+                if indexNewInstall != -1:
+                    break
+                    
+        if indexNewInstall != -1:
+            
+            print("install AS", indexYear, objZone.sZone, objZone.lsNewProcessCandidate[indexNewInstall].sProcessName, \
+                  objZone.lsNewProcessCandidate[indexNewInstall].Capacity)
+                    
+            installNewPlant(instance, objZone, objZone.lsNewProcessCandidate[indexNewInstall], indexYear)
+            bInstallNewUnit = True
+        else:
+            bInstallNewUnit = False
     else:
         bInstallNewUnit = False
 
