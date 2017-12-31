@@ -92,7 +92,9 @@ class ZoneOutput:
 
         ##### model endogenous output
 
+        self.dicZonePowerOutput_YS_TS = {}
         self.dicZonePowerGen_YS_TS = {}
+        self.dicZoneHeatOutput_YS_TS = {}
         self.dicZoneHeatGen_YS_TS = {}
         self.dicProcessLCOE_YS_PR = {}
         self.dicPowerGenCost_YS_TS = {}

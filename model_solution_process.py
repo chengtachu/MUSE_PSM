@@ -34,10 +34,12 @@ def getPowerOutputAndGeneration(instance, objZone, lsAllProcess):
 
     vPowerOutput_YS_TS_PR = {}
     vPowerGen_YS_TS_PR = {}
-    endPowerGen_YS_TS = {}
+    vZonePowerOutput_YS_TS = {}
+    vZonePowerGen_YS_TS = {}
     vHeatOutput_YS_TS_PR = {}
     vHeatGen_YS_TS_PR = {}
-    endHeatGen_YS_TS = {}
+    vZoneHeatOutput_YS_TS = {}
+    vZoneHeatGen_YS_TS = {}
 
     # initialization
     for objZoneProcess in objZone.lsProcessAssump:
@@ -45,10 +47,12 @@ def getPowerOutputAndGeneration(instance, objZone, lsAllProcess):
             for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
                 vPowerOutput_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objZoneProcess.sProcessName] = 0
                 vPowerGen_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objZoneProcess.sProcessName] = 0
-                endPowerGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
+                vZonePowerOutput_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
+                vZonePowerGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
                 vHeatOutput_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objZoneProcess.sProcessName] = 0
                 vHeatGen_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objZoneProcess.sProcessName] = 0
-                endHeatGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
+                vZoneHeatOutput_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
+                vZoneHeatGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
 
     for objProcess in lsAllProcess:
         for indexYR, iYearStep in enumerate(instance.iFSYearSteps_YS):
@@ -59,14 +63,17 @@ def getPowerOutputAndGeneration(instance, objZone, lsAllProcess):
                     fOutput = round(objProcess.fHourlyPowerOutput_TS_YS[indexTS, indexYear],2)
                     vPowerOutput_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objProcess.sProcessName] += fOutput   # MW
                     vPowerGen_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objProcess.sProcessName] += fOutput * objTimeSlice.iRepHoursInYear   # MWh
-                    endPowerGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] += fOutput * objTimeSlice.iRepHoursInYear
+                    vZonePowerOutput_YS_TS[iYearStep, objTimeSlice.iTSIndex] += fOutput     # MW
+                    vZonePowerGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] += fOutput * objTimeSlice.iRepHoursInYear     # MWh
                     # heat output
                     fOutput = round(objProcess.fHourlyHeatOutput_TS_YS[indexTS, indexYear],2)
                     vHeatOutput_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objProcess.sProcessName] += fOutput   # MW
                     vHeatGen_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objProcess.sProcessName] += fOutput * objTimeSlice.iRepHoursInYear   # MWh
-                    endHeatGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] += fOutput * objTimeSlice.iRepHoursInYear
+                    vZoneHeatOutput_YS_TS[iYearStep, objTimeSlice.iTSIndex] += fOutput   # MW
+                    vZoneHeatGen_YS_TS[iYearStep, objTimeSlice.iTSIndex] += fOutput * objTimeSlice.iRepHoursInYear   # MWh
                     
-    return vPowerOutput_YS_TS_PR, vPowerGen_YS_TS_PR, endPowerGen_YS_TS, vHeatOutput_YS_TS_PR, vHeatGen_YS_TS_PR, endHeatGen_YS_TS
+    return vPowerOutput_YS_TS_PR, vPowerGen_YS_TS_PR, vZonePowerOutput_YS_TS, vZonePowerGen_YS_TS, \
+            vHeatOutput_YS_TS_PR, vHeatGen_YS_TS_PR, vZoneHeatOutput_YS_TS, vZoneHeatGen_YS_TS
 
 
 def getStoragePowerOperation(instance, objZone, lsAllProcess, ZoneStrgProcessSet):
@@ -288,7 +295,7 @@ def getZoneUnitCommitResult(instance, objZone, lsAllProcess, ZoneProcessSet):
 
 
 
-def getMarketUnitCommitResult(instance, objMarket):
+def getAggregateUnitCommitResult(instance, objMarket):
 
     vPctCapacityCommit_YS_TS_PR = {}
     vPctCapacityGenerate_YS_TS_PR = {}
@@ -346,7 +353,7 @@ def getMarketUnitCommitResult(instance, objMarket):
     for sProcessName in setMarketProcess:
         for indexYR, iYearStep in enumerate(instance.iFSYearSteps_YS):
             for iTSIndex in setTimeSliceSN:
-                fMarketProcessCapacity = objMarket.MarketOutput.dicGenCapacity_YS_PR[iYearStep, sProcessName]
+                fMarketProcessCapacity = MarketOutput.dicGenCapacity_YS_PR[iYearStep, sProcessName]
                 if fMarketProcessCapacity > 0:
                     
                     MarketOutput.dicPctCapacityCommit_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = \
@@ -362,7 +369,7 @@ def getMarketUnitCommitResult(instance, objMarket):
 
 
 
-def cal_endGenTechCost(instance, objZone, setTimeSliceSN):
+def getProcessGenerationCost(instance, objZone, setTimeSliceSN):
 
     objMarket = instance.lsMarket[objZone.iMarketIndex]
 
@@ -524,6 +531,8 @@ def getMarketProcessLCOE_YS_PR(dicPowerGen_YS_TS_PR, dicYearInvest_YS_PR, target
                 if fYearGeneration > 0: # M.USD / MWh * 1000 = USD/kWh
                     targetDictionary[iYearStep, sProcess] = round(  dicYearInvest_YS_PR[iYearStep, sProcess] / fYearGeneration * 1000, 4)
 
+    return
+
 
 def getMarketPowerGenCost_YS_TS(dicPowerGen_YS_TS_PR, dicProcessLCOE_YS_PR, targetDictionary, setYS, IndexTS, setProcess):
 
@@ -539,14 +548,16 @@ def getMarketPowerGenCost_YS_TS(dicPowerGen_YS_TS_PR, dicProcessLCOE_YS_PR, targ
                 
             targetDictionary[iYearStep, sIndexTS] = round( fWeightedCost, 4)
 
+    return
 
-def cal_RegionWholeSalePrice_YS_TS(dicPowerGenCost_YS_TS, pWholeSalePriceMarkUp_YS, targetDictionary, setYS, IndexTS):
+
+def getRegionWholeSalePrice_YS_TS(dicPowerGenCost_YS_TS, pWholeSalePriceMarkUp_YS, targetDictionary, setYS, IndexTS):
 
     for iYearStep in setYS:
         for sIndexTS in IndexTS :
             targetDictionary[iYearStep, sIndexTS] = round( dicPowerGenCost_YS_TS[iYearStep, sIndexTS] * (1 + pWholeSalePriceMarkUp_YS[iYearStep] / 100), 4)
 
-
+    return
 
 
 

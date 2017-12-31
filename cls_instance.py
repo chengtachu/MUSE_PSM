@@ -6,6 +6,8 @@ import cls_misc
 import io_import_instance
 import io_import_regionNcountry
 import io_import_market
+import model_solution_main
+import model_solution_output
 
 class Instance:
     """ create an instance object  """
@@ -218,6 +220,12 @@ class Instance:
                 
             elif objMarket.sModel == "WM":
                 objMarket.modelrun_WM(self)
+                
+        # result aggregation into country and region
+        model_solution_main.updateCountrySolution()
+        #model_solution_main.updateRegionSolution(instance, self)
+        #model_solution_output.outputCountrySolution(instance, self)
+        #model_solution_output.outputRegionSolution(instance, self)
 
         return
     

@@ -6,6 +6,7 @@ import model_util_trans
 import model_VI_dispatch
 import model_VI_plan
 import model_solution_main
+import model_solution_output
 
 class Market:
     """ create an region object  """
@@ -79,12 +80,8 @@ class Market:
         
         model_solution_main.updateZoneSolution(instance, self)
         model_solution_main.updateMarketSolution(instance, self)
-        '''
-        model_util_output.outputZoneSolution(instance, self)
-        model_util_output.outputMarketSolution(instance, self)
-        model_util_output.outputCountrySolution(instance, self)
-        model_util_output.outputRegionSolution(instance, self)
-        '''
+        model_solution_output.outputZoneSolution(instance, self)
+        model_solution_output.outputMarketSolution(instance, self)
         print(" model output finish")
         
         return
@@ -130,7 +127,9 @@ class MarketOutput:
 
         ##### model endogenous output
 
+        self.dicMarketPowerOutput_YS_TS = {}
         self.dicMarketPowerGen_YS_TS = {}
+        self.dicMarketHeatOutput_YS_TS = {}
         self.dicMarketHeatGen_YS_TS = {}
         self.dicProcessLCOE_YS_PR = {}
         self.dicPowerGenCost_YS_TS = {}
