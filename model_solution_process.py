@@ -295,31 +295,29 @@ def getZoneUnitCommitResult(instance, objZone, lsAllProcess, ZoneProcessSet):
 
 
 
-def getAggregateUnitCommitResult(instance, objMarket):
+def getAggregateUnitCommitResult(instance, lsZone, objOutput):
 
     vPctCapacityCommit_YS_TS_PR = {}
     vPctCapacityGenerate_YS_TS_PR = {}
     vPctCapacityAncSer_YS_TS_PR = {}
     
-    setMarketProcess = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs ]
+    setInstanceProcess = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs ]
     setFSYearSteps = [ iFSYearSteps for iFSYearSteps in instance.iFSYearSteps_YS ]
     setTimeSliceSN = [ objTimeSlice.iTSIndex for objTimeSlice in instance.lsTimeSlice ]
     
-    MarketOutput = objMarket.MarketOutput
-    
     # market value initialization
-    for sProcessName in setMarketProcess:
+    for sProcessName in setInstanceProcess:
         for iYearStep in instance.iFSYearSteps_YS:
             for iTSIndex in setTimeSliceSN:
-                if (iYearStep, iTSIndex, sProcessName) not in MarketOutput.dicPctCapacityCommit_YS_TS_PR:
-                    MarketOutput.dicPctCapacityCommit_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = 0 
-                if (iYearStep, iTSIndex, sProcessName) not in MarketOutput.dicPctCapacityGenerate_YS_TS_PR:
-                    MarketOutput.dicPctCapacityGenerate_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = 0 
-                if (iYearStep, iTSIndex, sProcessName) not in MarketOutput.dicPctCapacityAncSer_YS_TS_PR:
-                    MarketOutput.dicPctCapacityAncSer_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = 0   
+                if (iYearStep, iTSIndex, sProcessName) not in objOutput.dicPctCapacityCommit_YS_TS_PR:
+                    objOutput.dicPctCapacityCommit_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = 0 
+                if (iYearStep, iTSIndex, sProcessName) not in objOutput.dicPctCapacityGenerate_YS_TS_PR:
+                    objOutput.dicPctCapacityGenerate_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = 0 
+                if (iYearStep, iTSIndex, sProcessName) not in objOutput.dicPctCapacityAncSer_YS_TS_PR:
+                    objOutput.dicPctCapacityAncSer_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = 0   
     
     
-    for indexZone, objZone in enumerate(objMarket.lsZone):
+    for indexZone, objZone in enumerate(lsZone):
 
         lsAllProcess = list(copy.copy(objZone.lsProcess))
         lsAllProcess.extend(copy.copy(objZone.lsProcessPlanned))
@@ -350,19 +348,19 @@ def getAggregateUnitCommitResult(instance, objMarket):
                     vPctCapacityAncSer_YS_TS_PR[iYearStep, objTimeSlice.iTSIndex, objProcess.sProcessName] += objProcess.fAS30MinReserve_TS_YS[indexTS, indexYear]    
         
     # update market values
-    for sProcessName in setMarketProcess:
+    for sProcessName in setInstanceProcess:
         for indexYR, iYearStep in enumerate(instance.iFSYearSteps_YS):
             for iTSIndex in setTimeSliceSN:
-                fMarketProcessCapacity = MarketOutput.dicGenCapacity_YS_PR[iYearStep, sProcessName]
+                fMarketProcessCapacity = objOutput.dicGenCapacity_YS_PR[iYearStep, sProcessName]
                 if fMarketProcessCapacity > 0:
                     
-                    MarketOutput.dicPctCapacityCommit_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = \
+                    objOutput.dicPctCapacityCommit_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = \
                         round(vPctCapacityCommit_YS_TS_PR[iYearStep, iTSIndex, sProcessName] / fMarketProcessCapacity * 100, 2)
                         
-                    MarketOutput.dicPctCapacityGenerate_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = \
+                    objOutput.dicPctCapacityGenerate_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = \
                         round(vPctCapacityGenerate_YS_TS_PR[iYearStep, iTSIndex, sProcessName] / fMarketProcessCapacity * 100, 2)
                         
-                    MarketOutput.dicPctCapacityAncSer_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = \
+                    objOutput.dicPctCapacityAncSer_YS_TS_PR[iYearStep, iTSIndex, sProcessName] = \
                         round(vPctCapacityAncSer_YS_TS_PR[iYearStep, iTSIndex, sProcessName] / fMarketProcessCapacity * 100, 2)
 
     return
@@ -454,6 +452,45 @@ def getTransmissionResult(instance, objMarket, setTransmission):
                 vTransUsage_YS_TS_TR[iYearStep, objTimeSlice.iTSIndex, objTransFlow.PowerFlowID] = objTransFlow.fTransLineInput_TS_YS[indexTS, indexYear]
 
     return vTransCapacity_YS_TR, vTransNewCapacity_YS_TR, vTransCAPEX_YS_TR, vTransOPEX_YS_TR, vTransUsage_YS_TS_TR
+
+
+def getCountryTransResult(instance, objCountry):
+
+    vCrossBorderTrading_YS_TS = {}  # positive for export
+    vDomesticTrading_YS_TS = {}
+
+    # initialization
+    for iYearStep in instance.iFSYearSteps_YS:
+        for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+            vCrossBorderTrading_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
+            vDomesticTrading_YS_TS[iYearStep, objTimeSlice.iTSIndex] = 0
+
+    for objMarket in instance.lsMarket:
+        for index, objTransFlow in enumerate(objMarket.lsTransmission):
+            
+            if objTransFlow.From in objCountry.sZone_ZN and objTransFlow.To in objCountry.sZone_ZN:
+                # domestic flow
+                for indexYR, iYearStep in enumerate(instance.iFSYearSteps_YS):
+                    indexYear = instance.iFSBaseYearIndex + indexYR
+                    for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+                        vDomesticTrading_YS_TS[iYearStep, objTimeSlice.iTSIndex] += objTransFlow.fTransLineInput_TS_YS[indexTS, indexYear]
+                        
+            elif objTransFlow.From in objCountry.sZone_ZN and objTransFlow.To not in objCountry.sZone_ZN:
+                # export flow (positive)
+                for indexYR, iYearStep in enumerate(instance.iFSYearSteps_YS):
+                    indexYear = instance.iFSBaseYearIndex + indexYR
+                    for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+                        vCrossBorderTrading_YS_TS[iYearStep, objTimeSlice.iTSIndex] += objTransFlow.fTransLineInput_TS_YS[indexTS, indexYear]
+                
+            elif objTransFlow.From not in objCountry.sZone_ZN and objTransFlow.To in objCountry.sZone_ZN:
+                # import flow (negative)
+                for indexYR, iYearStep in enumerate(instance.iFSYearSteps_YS):
+                    indexYear = instance.iFSBaseYearIndex + indexYR
+                    for indexTS, objTimeSlice in enumerate(instance.lsTimeSlice):
+                        vCrossBorderTrading_YS_TS[iYearStep, objTimeSlice.iTSIndex] -= objTransFlow.fTransLineInput_TS_YS[indexTS, indexYear]
+                
+    return vCrossBorderTrading_YS_TS, vDomesticTrading_YS_TS
+
 
 
 '''

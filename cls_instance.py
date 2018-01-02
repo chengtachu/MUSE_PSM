@@ -222,10 +222,15 @@ class Instance:
                 objMarket.modelrun_WM(self)
                 
         # result aggregation into country and region
-        model_solution_main.updateCountrySolution()
-        #model_solution_main.updateRegionSolution(instance, self)
-        #model_solution_output.outputCountrySolution(instance, self)
-        #model_solution_output.outputRegionSolution(instance, self)
+        model_solution_main.updateCountrySolution(self)
+        model_solution_main.updateRegionSolution(self)
+                
+        for objRegion in self.lsRegion:
+            for objCountry in objRegion.lsCountry:
+                model_solution_output.outputCountrySolution(self, objCountry)
+        
+        for objRegion in self.lsRegion:
+            model_solution_output.outputRegionSolution(self, objRegion)
 
         return
     

@@ -7,9 +7,9 @@ import numpy as np
 
 _sDataFilePath = "Data/Output"
 
-def CheckMarketFolderAndDeleteExistFiles(sMarket):
+def CheckFolderAndDeleteExistFiles(sFolder):
 
-    directory = _sDataFilePath + "/" + sMarket
+    directory = _sDataFilePath + "/" + sFolder
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -19,9 +19,9 @@ def CheckMarketFolderAndDeleteExistFiles(sMarket):
             os.remove(filename)
 
 
-def TableOutputToCSV(sMarket, tableOutput, sFileName):
+def TableOutputToCSV(sFolder, tableOutput, sFileName):
 
-    directory = _sDataFilePath + "/" + sMarket
+    directory = _sDataFilePath + "/" + sFolder
     sFilePath = directory + "/" + sFileName + ".csv"
     
     # create file

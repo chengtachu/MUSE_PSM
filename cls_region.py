@@ -8,7 +8,7 @@ class Region:
         self.sRegion = Region
         self.lsCountry = list()          # a list of country index under this region
         self.lsProcessAssump = list()          # a list of country index under this region
-        #self.RegionOutput = RegionOutput()
+        self.RegionOutput = RegionOutput()
         return
 
 
@@ -34,17 +34,6 @@ class RegionOutput:
         self.dicYearInvest_YS_PR = {}
 
         self.dicFuelConsum_YS_TS_PR = {}
-
-        self.dicAncSerRegulation_YS_TS = {}
-        self.dicAncSer10MinReserve_YS_TS = {}
-        self.dicAncSer30MinReserve_YS_TS = {}
-
-        self.dicPctCapacityCommit_YS_TS_PR = {}
-        self.dicPctCapacityGenerate_YS_TS_PR = {}
-        self.dicPctCapacityAncSer_YS_TS_PR = {}
-        
-        ## transmission
-
 
         ##### model endogenous output
 
@@ -78,10 +67,10 @@ class Country:
         self.sCountry = Country
         self.sZone_ZN = list()              # a list of zone ID under this country
         self.lsProcessAssump = list()       # a list of country index under this region
+        self.CountryOutput = CountryOutput()
         # self.lsCommodity                  # a list of commodity in the country
         # self.fCarbonCost_YS
         #self.iZoneIndex_ZN = list()        # a list of zone index under this country
-        #self.CountryOutput = CountryOutput()
         return
 
 
@@ -117,12 +106,13 @@ class CountryOutput:
         self.dicPctCapacityAncSer_YS_TS_PR = {}
         
         ## transmission
-
+        self.dicCrossBorderTrading_YS_TS = {}
+        self.dicDomesticTrading_YS_TS = {}
 
         ##### model endogenous output
 
         self.dicCountryPowerOutput_YS_TS = {}
-        self.dicCountryowerGen_YS_TS = {}
+        self.dicCountryPowerGen_YS_TS = {}
         self.dicCountryHeatOutput_YS_TS = {}
         self.dicCountryHeatGen_YS_TS = {}
         self.dicProcessLCOE_YS_PR = {}

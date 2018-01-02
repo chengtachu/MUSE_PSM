@@ -6,9 +6,6 @@ import io_export
 
 def outputZoneSolution(instance, objMarket):
 
-    # create folder
-    io_export.CheckMarketFolderAndDeleteExistFiles(objMarket.sMarket + "_Zone")
-
     setTimeSliceSN = [ objTimeSlice.iTSIndex for objTimeSlice in instance.lsTimeSlice ]
 
     simulatedYearStep_YS = []
@@ -17,6 +14,10 @@ def outputZoneSolution(instance, objMarket):
             simulatedYearStep_YS.append(iYearStep)
 
     for objZone in objMarket.lsZone:
+        
+        # create folder
+        sFolder = "Market/" + objMarket.sMarket + "_Zone/" + objZone.sZone
+        io_export.CheckFolderAndDeleteExistFiles(sFolder)        
         
         objCountry = instance.lsRegion[objZone.iRegionIndex].lsCountry[objZone.iCountryIndex]
         
@@ -43,14 +44,17 @@ def outputZoneSolution(instance, objMarket):
                 elif "_YS" in dataItem:
                     tableOutput =  DictToArray_X(dataTable, simulatedYearStep_YS)
 
-                io_export.TableOutputToCSV(objMarket.sMarket + "_Zone", tableOutput, objZone.sZone + "_" + dataItem)
+                io_export.TableOutputToCSV(sFolder, tableOutput, dataItem)
+
+    return
 
 
 
 def outputMarketSolution(instance, objMarket):
 
     # create folder
-    io_export.CheckMarketFolderAndDeleteExistFiles(objMarket.sMarket)
+    sFolder = "Market/" + objMarket.sMarket
+    io_export.CheckFolderAndDeleteExistFiles(sFolder)
 
     simulatedYearStep_YS = []
     for iYearStep in instance.iAllYearSteps_YS:
@@ -91,7 +95,93 @@ def outputMarketSolution(instance, objMarket):
             elif "_YS" in dataItem:
                 tableOutput =  DictToArray_X(dataTable, simulatedYearStep_YS)
 
-            io_export.TableOutputToCSV(objMarket.sMarket, tableOutput, dataItem)
+            io_export.TableOutputToCSV(sFolder, tableOutput, dataItem)
+
+    return
+
+
+
+def outputCountrySolution(instance, objCountry):
+
+    # create folder
+    sFolder = "Country/" + objCountry.sCountry
+    io_export.CheckFolderAndDeleteExistFiles(sFolder)
+
+    simulatedYearStep_YS = []
+    for iYearStep in instance.iAllYearSteps_YS:
+        if iYearStep <= instance.iFSYearSteps_YS[-1]:
+            simulatedYearStep_YS.append(iYearStep)
+
+    setTimeSlice = [ objTimeSlice.iTSIndex for objTimeSlice in instance.lsTimeSlice ]
+    setMarketProcess = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs ]
+    setMarketProcessStrg = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs if objProcessAssump.sOperationMode == "Storage"]
+    setCommodity = [ objCommodity.sCommodityName for objCommodity in instance.lsCommodity ]
+    #setGenerator = [ objGenerator.sGeneratorID for objGenerator in objMarket.listGenerator ]
+
+    listOutput = objCountry.CountryOutput.__dict__.keys()
+    for dataItem in listOutput:
+        tableOutput = []
+        dataTable = getattr(objCountry.CountryOutput, dataItem)
+
+        if bool(dataTable): # check if the dictionary is empty (don't change the order)
+            if "_YS_TS_PR" in dataItem:
+                tableOutput =  DictToArray_X_Y_Z(dataTable, simulatedYearStep_YS, setTimeSlice, setMarketProcess)
+            elif "_YS_TS_ST" in dataItem:
+                tableOutput =  DictToArray_X_Y_Z(dataTable, simulatedYearStep_YS, setTimeSlice, setMarketProcessStrg)
+            elif "_YS_TS_CM" in dataItem:
+                tableOutput =  DictToArray_X_Y_Z(dataTable, simulatedYearStep_YS, setTimeSlice, setCommodity)
+            elif "_YS_PR" in dataItem:
+                tableOutput =  DictToArray_X_Y(dataTable, simulatedYearStep_YS, setMarketProcess)
+            elif "_YS_TS" in dataItem:
+                tableOutput =  DictToArray_X_Y(dataTable, simulatedYearStep_YS, setTimeSlice)
+            elif "_YS" in dataItem:
+                tableOutput =  DictToArray_X(dataTable, simulatedYearStep_YS)
+
+            io_export.TableOutputToCSV(sFolder, tableOutput, dataItem)
+
+    return
+
+
+
+def outputRegionSolution(instance, objRegion):
+
+    # create folder
+    sFolder = "Region/" + objRegion.sRegion
+    io_export.CheckFolderAndDeleteExistFiles(sFolder)
+
+    simulatedYearStep_YS = []
+    for iYearStep in instance.iAllYearSteps_YS:
+        if iYearStep <= instance.iFSYearSteps_YS[-1]:
+            simulatedYearStep_YS.append(iYearStep)
+
+    setTimeSlice = [ objTimeSlice.iTSIndex for objTimeSlice in instance.lsTimeSlice ]
+    setMarketProcess = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs ]
+    setMarketProcessStrg = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs if objProcessAssump.sOperationMode == "Storage"]
+    setCommodity = [ objCommodity.sCommodityName for objCommodity in instance.lsCommodity ]
+
+    listOutput = objRegion.RegionOutput.__dict__.keys()
+    for dataItem in listOutput:
+        tableOutput = []
+        dataTable = getattr(objRegion.RegionOutput, dataItem)
+
+        if bool(dataTable): # check if the dictionary is empty (don't change the order)
+            if "_YS_TS_PR" in dataItem:
+                tableOutput =  DictToArray_X_Y_Z(dataTable, simulatedYearStep_YS, setTimeSlice, setMarketProcess)
+            elif "_YS_TS_ST" in dataItem:
+                tableOutput =  DictToArray_X_Y_Z(dataTable, simulatedYearStep_YS, setTimeSlice, setMarketProcessStrg)
+            elif "_YS_TS_CM" in dataItem:
+                tableOutput =  DictToArray_X_Y_Z(dataTable, simulatedYearStep_YS, setTimeSlice, setCommodity)
+            elif "_YS_PR" in dataItem:
+                tableOutput =  DictToArray_X_Y(dataTable, simulatedYearStep_YS, setMarketProcess)
+            elif "_YS_TS" in dataItem:
+                tableOutput =  DictToArray_X_Y(dataTable, simulatedYearStep_YS, setTimeSlice)
+            elif "_YS" in dataItem:
+                tableOutput =  DictToArray_X(dataTable, simulatedYearStep_YS)
+
+            io_export.TableOutputToCSV(sFolder, tableOutput, dataItem)
+
+    return
+
 
 
 #------------------------------------------------------------------

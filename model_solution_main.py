@@ -193,22 +193,13 @@ def updateMarketSolution(instance, objMarket):
 
 
     #### unit commitment
-    model_solution_process.getAggregateUnitCommitResult(instance, objMarket)
+    model_solution_process.getAggregateUnitCommitResult(instance, objMarket.lsZone, objMarket.MarketOutput)
 
     #----------------------------------------------------
     # transmisson output
     #----------------------------------------------------
 
     setTransmission = [ objTrsm.PowerFlowID for objTrsm in objMarket.lsTransmission ]
-
-    for sTrans in setTransmission:
-        for iYearStep in setFSYearSteps:
-            objMarket.MarketOutput.dicTransCapacity_YS_TR[iYearStep, sTrans] = 0
-            objMarket.MarketOutput.dicTransNewCapacity_YS_TR[iYearStep, sTrans] = 0
-            objMarket.MarketOutput.dicTransCAPEX_YS_TR[iYearStep, sTrans] = 0
-            objMarket.MarketOutput.dicTransOPEX_YS_TR[iYearStep, sTrans] = 0
-            for sTimeSlice in setTimeSliceSN:
-                objMarket.MarketOutput.dicTransUsage_YS_TS_TR[iYearStep, sTimeSlice, sTrans] = 0
 
     vTransCapacity_YS_TR, vTransNewCapacity_YS_TR, vTransCAPEX_YS_TR, vTransOPEX_YS_TR, vTransUsage_YS_TS_TR = \
         model_solution_process.getTransmissionResult(instance, objMarket, setTransmission)
@@ -256,6 +247,7 @@ def updateCountrySolution(instance):
 
     for objRegion in instance.lsRegion:
         for objCountry in objRegion.lsCountry:
+            lsZoneInCountry = list() 
             for indexZone, sCountryZone in enumerate(objCountry.sZone_ZN):
                 
                 # get the zone object
@@ -266,6 +258,8 @@ def updateCountrySolution(instance):
                             objZone = objMarketZone
                             break
                 if objZone != None:
+                    
+                    lsZoneInCountry.append(objZone)
                     
                     objCountry = instance.lsRegion[objZone.iRegionIndex].lsCountry[objZone.iCountryIndex]
                     setCommodity = [ objCommodity.sCommodityName for objCommodity in objCountry.lsCommodity ]        
@@ -303,10 +297,10 @@ def updateCountrySolution(instance):
                     #----------------------------------------------------
             
                     ##### generation
-                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZonePowerOutput_YS_TS, objCountry.CountryOutput.dicMarketPowerOutput_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
-                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZonePowerGen_YS_TS, objCountry.CountryOutput.dicMarketPowerGen_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
-                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZoneHeatOutput_YS_TS, objCountry.CountryOutput.dicMarketHeatOutput_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
-                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZoneHeatGen_YS_TS, objCountry.CountryOutput.dicMarketHeatGen_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
+                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZonePowerOutput_YS_TS, objCountry.CountryOutput.dicCountryPowerOutput_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
+                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZonePowerGen_YS_TS, objCountry.CountryOutput.dicCountryPowerGen_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
+                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZoneHeatOutput_YS_TS, objCountry.CountryOutput.dicCountryHeatOutput_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
+                    aggregateVariable_X_Y(objZone.ZoneOutput.dicZoneHeatGen_YS_TS, objCountry.CountryOutput.dicCountryHeatGen_YS_TS, setFSYearSteps, setTimeSliceSN, indexZone )
                    
                     ##### generation cost LCOE (USD/kWh)
                     model_solution_process.getMarketProcessLCOE_YS_PR(objCountry.CountryOutput.dicPowerGen_YS_TS_PR, objCountry.CountryOutput.dicYearInvest_YS_PR, \
@@ -330,10 +324,94 @@ def updateCountrySolution(instance):
                     aggregateVariable_X_Y_Z(objZone.ZoneOutput.dicFuelConsum_YS_TS_CM, objCountry.CountryOutput.dicFuelConsum_YS_TS_CM, setFSYearSteps, setTimeSliceSN, setCommodity, indexZone )
 
             #### unit commitment
-            model_solution_process.getAggregateUnitCommitResult(instance, objMarket)
+            model_solution_process.getAggregateUnitCommitResult(instance, lsZoneInCountry, objCountry.CountryOutput)
+
+            #----------------------------------------------------
+            # transmisson output
+            #----------------------------------------------------
+
+            vCrossBorderTrading_YS_TS, vDomesticTrading_YS_TS = model_solution_process.getCountryTransResult(instance, objCountry)
+            saveSolution_YS_TS(vCrossBorderTrading_YS_TS, objCountry.CountryOutput.dicCrossBorderTrading_YS_TS, setFSYearSteps, setTimeSliceSN) 
+            saveSolution_YS_TS(vDomesticTrading_YS_TS, objCountry.CountryOutput.dicDomesticTrading_YS_TS, setFSYearSteps, setTimeSliceSN) 
 
     return
     
+
+
+def updateRegionSolution(instance):
+
+    setFSYearSteps = [ iFSYearSteps for iFSYearSteps in instance.iFSYearSteps_YS ]
+    setTimeSliceSN = [ objTimeSlice.iTSIndex for objTimeSlice in instance.lsTimeSlice ]
+    setInstanceProcess = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs ]
+    setInstanceProcessStrg = [ objProcessAssump.sProcessName for objProcessAssump in instance.lsProcessDefObjs if objProcessAssump.sOperationMode == "Storage"]
+
+    #----------------------------------------------------
+    # aggregate region output
+    #----------------------------------------------------
+
+    for objRegion in instance.lsRegion:
+        for indexCountry, objCountry in enumerate(objRegion.lsCountry):
+                    
+            setCommodity = [ objCommodity.sCommodityName for objCommodity in instance.lsCommodity ]        
+            
+            ##### power/heat generation and balance
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicGenCapacity_YS_PR, objRegion.RegionOutput.dicGenCapacity_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicGenNewCapacity_YS_PR, objRegion.RegionOutput.dicGenNewCapacity_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicPowerGen_YS_TS_PR, objRegion.RegionOutput.dicPowerGen_YS_TS_PR, setFSYearSteps, setTimeSliceSN, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicPowerOutput_YS_TS_PR, objRegion.RegionOutput.dicPowerOutput_YS_TS_PR, setFSYearSteps, setTimeSliceSN, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicHeatGen_YS_TS_PR, objRegion.RegionOutput.dicHeatGen_YS_TS_PR, setFSYearSteps, setTimeSliceSN, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicHeatOutput_YS_TS_PR, objRegion.RegionOutput.dicHeatOutput_YS_TS_PR, setFSYearSteps, setTimeSliceSN, setInstanceProcess, indexCountry )
+    
+            ##### storage
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicStrgInput_YS_TS_ST, objRegion.RegionOutput.dicStrgInput_YS_TS_ST, setFSYearSteps, setTimeSliceSN, setInstanceProcessStrg, indexCountry )
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicStrgOutput_YS_TS_ST, objRegion.RegionOutput.dicStrgOutput_YS_TS_ST, setFSYearSteps, setTimeSliceSN, setInstanceProcessStrg, indexCountry )
+    
+            ##### cost
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicYearInvest_YS_PR, objRegion.RegionOutput.dicYearInvest_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicGenCAPEX_YS_PR, objRegion.RegionOutput.dicGenCAPEX_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicGenOPEX_YS_PR, objRegion.RegionOutput.dicGenOPEX_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicFuelCost_YS_PR, objRegion.RegionOutput.dicFuelCost_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicEmissionCost_YS_PR, objRegion.RegionOutput.dicEmissionCost_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicRunningCost_YS_PR, objRegion.RegionOutput.dicRunningCost_YS_PR, setFSYearSteps, setInstanceProcess, indexCountry )
+    
+            ##### fuel (MWh)
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicFuelConsum_YS_TS_PR, objRegion.RegionOutput.dicFuelConsum_YS_TS_PR, setFSYearSteps, setTimeSliceSN, setInstanceProcess, indexCountry )
+     
+                
+            #----------------------------------------------------
+            # endogenous output
+            #----------------------------------------------------
+    
+            ##### generation
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicCountryPowerOutput_YS_TS, objRegion.RegionOutput.dicRegionPowerOutput_YS_TS, setFSYearSteps, setTimeSliceSN, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicCountryPowerGen_YS_TS, objRegion.RegionOutput.dicRegionPowerGen_YS_TS, setFSYearSteps, setTimeSliceSN, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicCountryHeatOutput_YS_TS, objRegion.RegionOutput.dicRegionHeatOutput_YS_TS, setFSYearSteps, setTimeSliceSN, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicCountryHeatGen_YS_TS, objRegion.RegionOutput.dicRegionHeatGen_YS_TS, setFSYearSteps, setTimeSliceSN, indexCountry )
+           
+            ##### generation cost LCOE (USD/kWh)
+            model_solution_process.getMarketProcessLCOE_YS_PR(objRegion.RegionOutput.dicPowerGen_YS_TS_PR, objRegion.RegionOutput.dicYearInvest_YS_PR, \
+                                        objRegion.RegionOutput.dicProcessLCOE_YS_PR, setFSYearSteps, setTimeSliceSN, setInstanceProcess )
+
+            ##### do not update here if the methodology is SRMC
+            ## electricity price (USD/kWh)
+            model_solution_process.getMarketPowerGenCost_YS_TS(objRegion.RegionOutput.dicPowerGen_YS_TS_PR, objRegion.RegionOutput.dicProcessLCOE_YS_PR, objRegion.RegionOutput.dicPowerGenCost_YS_TS, setFSYearSteps, setTimeSliceSN, setInstanceProcess )
+            ## Whole Sale price (USD/kWh)
+            pWholeSalePriceMarkUp_YS= {}    # preserve for future modification
+            for sYearStep in setFSYearSteps:
+                pWholeSalePriceMarkUp_YS[sYearStep] = 0
+            model_solution_process.getRegionWholeSalePrice_YS_TS(objRegion.RegionOutput.dicPowerGenCost_YS_TS, pWholeSalePriceMarkUp_YS, objRegion.RegionOutput.dicPowerWholeSalePrice_YS_TS, setFSYearSteps, setTimeSliceSN )
+
+            ##### emission (M.Tonnes/Year)
+            aggregateVariable_X(objCountry.CountryOutput.dicCO2Emission_YS, objRegion.RegionOutput.dicCO2Emission_YS, setFSYearSteps, indexCountry)
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicCO2Emission_YS_TS, objRegion.RegionOutput.dicCO2Emission_YS_TS, setFSYearSteps, setTimeSliceSN, indexCountry )
+            aggregateVariable_X_Y(objCountry.CountryOutput.dicEmissionCaptured_YS_TS, objRegion.RegionOutput.dicEmissionCaptured_YS_TS, setFSYearSteps, setTimeSliceSN, indexCountry )
+    
+            ##### fuel consumption (MWh)
+            aggregateVariable_X_Y_Z(objCountry.CountryOutput.dicFuelConsum_YS_TS_CM, objRegion.RegionOutput.dicFuelConsum_YS_TS_CM, setFSYearSteps, setTimeSliceSN, setCommodity, indexCountry )
+
+    return
+
+
 
 
 #------------------------------------------------------------------
