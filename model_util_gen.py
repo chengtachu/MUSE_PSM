@@ -257,6 +257,10 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
             objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] = (objProcess.fDeratedCapacity - fAllocatedAncSer)
             objZone.fPowerResDemand_TS_YS[indexTS, indexYS] -= (objProcess.fDeratedCapacity - fAllocatedAncSer)
             objZone.fPowerOutput_TS_YS[indexTS,indexYS] += (objProcess.fDeratedCapacity - fAllocatedAncSer)
+            
+        #------ process in generation mode --------------------------
+        if objProcess.fHourlyPowerOutput_TS_YS[indexTS,indexYS] > 1:
+            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 1
 
     else :
         # no local residual demand, check export
@@ -268,9 +272,8 @@ def dispatch_thermalUnit_TS(instance, objMarket, objZone, objProcess, indexTS, i
         iPathIndex = model_util_trans.findExportPathIndex(objMarket, objZone, indexTS, indexYS)
         if iPathIndex is not -1:
             
-            # ------ commit this process --------------------------
-            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 2 
-            # -----------------------------------------------------
+            #------ process in generation mode --------------------------
+            objProcess.iOperatoinStatus_TS_YS[indexTS, indexYS] = 1 
             
             # calculate the max injection of the selected path
             fMaxInput = model_util_trans.calPathMaxInjection(objMarket, objZone, iPathIndex, fExportOutput, indexTS, indexYS)

@@ -82,10 +82,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
                 if objZone.sZone ==  objMarketDup.lsZone[objProcessIndex.indexZone].sZone:
                     objProcess = lsProcess[objProcessIndex.indexProcess]
                     if objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] != 0: # the process has NOT be commited
-                        
-                        if sMode == "PlanMode" and objProcess.sProcessID == "AUSTRIA_OIL_ST_1992": 
-                            print()
-                        
+
                         for iUnit in range(int(objProcess.NoUnit)):
                             
                             if objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] > 0.001:
@@ -117,7 +114,7 @@ def unitCommitment(instance, objMarket, indexYS, sMode):
             for objProcessIndex in objMarketDup.lsAncSerProcessIndex:
                 if objZone.sZone ==  objMarketDup.lsZone[objProcessIndex.indexZone].sZone:
                     objProcess = lsProcess[objProcessIndex.indexProcess]
-                    if objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] == 0: # the process has NOT be commited
+                    if objProcess.iOperatoinStatus_TS_YS[iHighestTSIndex, indexYS] == 0: # the process has NOT be commited previously
                         for iUnit in range(int(objProcess.NoUnit)):
                             if objZone.fASDfcRegulation_TS_YS[iHighestTSIndex, indexYS] > 0.001:
                                 allocateRegulationCapacity_nonspin(instance, objZone, objProcess, iHighestTSIndex, indexYS)
