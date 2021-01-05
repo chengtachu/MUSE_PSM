@@ -125,30 +125,37 @@ Structure design:
 * Transmission upgrade
 
 ##### the main algorithm of the WM model
+
 ![WM](/img/WM_Alg.png)
 
 ---
 
 ### Algorithms of the key functions
 
-#### A4. Unit commitment
+### A4. Unit commitment
+
 ![UC](/img/A4_UC.png)
 
-#### A5. Power dispatch with transmission constraints
+### A5. Power dispatch with transmission constraints
 
 **Power dispatch algorithm**
+
 ![A5](/img/A5_01.png)
 
 **Cross-zone transmission algorithm**
+
 ![A5](/img/A5_02.png)
 
 **Cross-zone transmission algorithm – example**
+
 ![A5](/img/A5_03.png)
 
-#### A8. Heat and CHP investment algorithm
+### A8. Heat and CHP investment algorithm
+
 ![A8](/img/A8_CHP.png)
 
-#### A9. Capacity expansion investment algorithm
+### A9. Capacity expansion investment algorithm
+
 ![A9](/img/A9_CE.png)
 
 
