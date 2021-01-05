@@ -47,28 +47,31 @@ Note that this package is an extensions from the MUSE Power Sector Module. **The
 ---
 ### Major Technologies:
 **Conventional Thermal Generation :**
-Coal Subcritical / Supercritical / Ultra-supercritical / IGCC
-Coal USC post comb capture CCS / oxy-fuelling CCS / IGCC pre-comb capture CCS
-Gas gas turbine / Combined-cycle
-Gas NGCC post com / oxy-fuelling capture CCS
-Oil Steam turbine
-Nuclear LWR
+* Coal Subcritical / Supercritical / Ultra-supercritical / IGCC
+* Coal USC post comb capture CCS / oxy-fuelling CCS / IGCC pre-comb capture CCS
+* Gas gas turbine / Combined-cycle
+* Gas NGCC post com / oxy-fuelling capture CCS
+* Oil Steam turbine
+* Nuclear LWR
+
 **Renewable and Others:**
-Biomass Steam cycle / BIGCC with CCS
-Geothermal
-Hydro large/small hydro
-Wind onshore/offshore
-Solar PV rooftop/utility scale 
-CSP
-Hydro Pump Storage
+* Biomass Steam cycle / BIGCC with CCS
+* Geothermal
+* Hydro large/small hydro
+* Wind onshore/offshore
+* Solar PV rooftop/utility scale 
+* CSP
+* Hydro Pump Storage
+
 Note: the listed technologies are further spited according to fuel type  
+
 ---
 ### Model and Simulation Structure
 
 Modelling different market structures: 
 * one country has several market (US)
 * several country participate in one market (EU)
-* Vertical-integrated system
+* vertical-integrated system
 
 Structure design:
 * A country may have several zones which are the basic nodes in the model.
@@ -76,15 +79,15 @@ Structure design:
 * A country may have zones in different market
 * Each market may have several agents (GenCo) while in VI model there is only one agent
 * Parameters and assumptions mainly apply on country or region level
-* Simulation result is on zonal basis, then aggregate into country, then into region
-* All input in the same market will adjust to the same time zone 
+* Simulation result will be output on zonal basis, then being aggregated into country, then into region
+* All inputs in the same market will adjust to the same time zone 
 
 ![Structure](/img/simulation_structure.png)
 
 ---
 ### Roles and functions in the agent-based models :
 
-#### Vertically-integrated (VI) model
+### Vertically-integrated (VI) model
 **Regulator(RG):**
 * Capacity adequacy
 * Ancillary service requirement
@@ -98,7 +101,10 @@ Structure design:
 * Transmission upgrade
 * CHP operation
 
-#### Wholesale Market (WM) model
+##### the main algorithm of the VI model
+![VI](/img/VI_Alg.png)
+
+### Wholesale Market (WM) model
 **Regulator(RG):**
 * Capacity adequacy
 * Ancillary service requirement
@@ -117,6 +123,9 @@ Structure design:
 * Security constrained economic dispatch
 * Annual capacity market
 * Transmission upgrade
+
+##### the main algorithm of the WM model
+![WM](/img/WM_Alg.png)
 
 
 ---
